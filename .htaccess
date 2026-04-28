@@ -1,0 +1,28 @@
+# 디렉터리 리스팅 금지
+
+Options -Indexes
+
+# 민감한 확장자 파일 직접 접근 차단
+
+<FilesMatch "\.(log|sql|env|gitignore)$">
+Order allow,deny
+Deny from all
+</FilesMatch>
+
+# 기존에 언급하신 것들
+
+Header unset X-Powered-By
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set X-Content-Type-Options "nosniff"
+
+# Referrer 정보 제한
+
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# 불필요한 브라우저 기능 차단
+
+Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+# XSS 필터 강제 (구형 브라우저 대응)
+
+Header always set X-XSS-Protection "1; mode=block"

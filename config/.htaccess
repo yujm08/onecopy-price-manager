@@ -1,0 +1,5 @@
+# config/.htaccess
+<FilesMatch "\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
