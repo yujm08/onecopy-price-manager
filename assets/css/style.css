@@ -239,7 +239,7 @@ body {
 
 /* 컨테이너 */
 .container {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 40px auto;
   padding: 0 20px;
 }
@@ -309,9 +309,10 @@ body {
   border: 1px solid #ddd;
 }
 
-.price-table thead {
-  background: #34495e;
-  color: white;
+.price-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .price-table th {
@@ -537,6 +538,15 @@ body {
   font-size: 13px;
   color: #5a6778;
   text-decoration: none;
+}
+
+.badge-normal {
+  background: #5a6778;
+  color: white;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 11px;
+  margin-left: 6px;
 }
 
 /* 모바일에서만 보이는 것들 */

@@ -20,6 +20,7 @@ $product_name      = trim($_POST['product_name']  ?? '');
 $description       = trim($_POST['description']   ?? '');
 $brand_id          = $_POST['brand_id']           ?? '';
 $brand_name_new    = trim($_POST['brand_name_new'] ?? '');
+$cost_price = ($_POST['cost_price'] ?? '') !== '' ? (int)$_POST['cost_price'] : null;
 $cash_price_a = ($_POST['cash_price_a'] ?? '') !== '' ? (int)$_POST['cash_price_a'] : null;
 $cash_price_b = ($_POST['cash_price_b'] ?? '') !== '' ? (int)$_POST['cash_price_b'] : null;
 $cash_price_c = ($_POST['cash_price_c'] ?? '') !== '' ? (int)$_POST['cash_price_c'] : null;
@@ -88,11 +89,11 @@ try {
     $new_pid = $pdo->lastInsertId();
 
     // 가격 삽입
-    if ($cash_price_a !== null || $cash_price_b !== null || $cash_price_c !== null) {
-        $pdo->prepare("
-            INSERT INTO prices (product_id, price_month, cash_price_a, cash_price_b, cash_price_c, updated_by_company_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ")->execute([$new_pid, $price_month, $cash_price_a, $cash_price_b, $cash_price_c, $current_user['id']]);
+    if ($cash_price_a !== null || $cash_price_b !== null || $cash_price_c !== null || $cost_price !== null) {
+    $pdo->prepare("
+        INSERT INTO prices (product_id, price_month, cash_price_a, cash_price_b, cash_price_c, cost_price, updated_by_company_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ")->execute([$new_pid, $price_month, $cash_price_a, $cash_price_b, $cash_price_c, $cost_price, $current_user['id']]);
     }
 
     // 태그 삽입

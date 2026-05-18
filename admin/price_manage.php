@@ -31,12 +31,13 @@ $all_categories = $pdo->query("SELECT * FROM categories ORDER BY id")->fetchAll(
 $selected_category_id = (int)($_GET['category'] ?? ($all_categories[0]['id'] ?? 1));
 
 /* ── 쿼리 공통 FROM ── */
+$from_condition = is_admin() ? "WHERE 1=1" : "WHERE p.is_active = 1";
 $from = "FROM products p
     LEFT JOIN brands b     ON p.brand_id = b.id
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN prices pr    ON p.id = pr.product_id AND pr.price_month = ?
     LEFT JOIN product_tags pt ON p.id = pt.product_id
-    WHERE p.is_active = 1";
+    {$from_condition}";
 
 $term_sql    = '';
 $term_params = [];
@@ -64,11 +65,11 @@ if ($is_searching) {
 $stmt = $pdo->prepare("
     SELECT DISTINCT
         p.id, p.product_number, p.product_name, p.description,
-        p.category_id, p.brand_id,
+        p.category_id, p.brand_id, p.is_active,
         b.brand_name, c.category_name,
-        pr.cash_price_a, pr.cash_price_b, pr.cash_price_c, pr.updated_at
+        pr.cost_price, pr.cash_price_a, pr.cash_price_b, pr.cash_price_c, pr.updated_at
     $from $extra
-    ORDER BY c.id, CAST(p.product_number AS UNSIGNED)
+    ORDER BY c.id, p.is_active DESC, CAST(p.product_number AS UNSIGNED)
 ");
 $stmt->execute($params);
 $products = $stmt->fetchAll();
@@ -176,6 +177,22 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
 .btn-add-row:hover { background:#4B5563; }
 .hidden { display:none !important; }
 
+/* 비활성 행 */
+.inactive-row td { opacity: 0.38; }
+.inactive-row { display: table-row; }
+.edit-mode .inactive-row { visibility: visible; }
+
+/* 상태 토글 열 */
+.toggle-col { display: none; width: 80px; text-align: center; }
+.edit-mode .toggle-col { display: table-cell; }
+
+.btn-toggle {
+    padding: 4px 10px; border: none; border-radius: 3px;
+    font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.btn-toggle.active  { background: #27ae60; color: white; }
+.btn-toggle.inactive { background: #bdc3c7; color: #555; }
+
 /* 행 추가 폼 */
 .add-product-form { background:#fff8e1; border:2px solid #ffc107; padding:20px; border-radius:8px; margin-bottom:14px; }
 .add-product-form h3 { margin:0 0 14px; color:#856404; font-size:15px; }
@@ -187,16 +204,31 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
 .btn-form-cancel { padding:8px 16px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; }
 
 /* 테이블 */
-.price-table-wrap { position:relative; background:white; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.08); overflow:visible; user-select: none; -webkit-user-select: none;}
-.price-table-scroll { overflow-x:auto; }
-.price-table { width:100%; border-collapse:collapse; }
+.price-table-wrap {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    overflow: auto;
+    max-height: calc(100vh - 200px); /* 네비바+여백 제외한 높이 */
+    user-select: none;
+    -webkit-user-select: none;
+}
+.price-table-scroll { overflow:visible; }
+.price-table { width:100%; border-collapse: separate; border-spacing:0; }
 .price-table thead { background:#34495e; color:white; }
+.price-table thead th { position:sticky; top:0; z-index:10; background:#34495e; }
+.price-table thead tr:nth-child(2) th { top:43px; }
 .price-table th { padding:12px 14px; text-align:left; font-weight:500; font-size:13px; white-space:nowrap; }
 .price-table td { padding:11px 14px; border-bottom:1px solid #eee; font-size:13px; vertical-align:middle; }
 .price-table tbody tr:last-child td { border-bottom:none; }
 .price-table tbody tr:hover { background:#f8f9fa; }
 .price-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
 .no-data { padding:60px 20px; text-align:center; color:#7f8c8d; }
+
+.margin-cell { background: #f0f2f5; }
+.edit-mode .margin-cell { background: #e8eaed; }
+.price-table th.group-header { text-align: center; border-bottom: 1px solid rgba(255,255,255,0.2); }
 
 /* 설명 셀 — 조회/수정 모두 줄바꿈 */
 .desc-cell {
@@ -412,6 +444,10 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
                     <input type="text" name="description">
                 </div>
                 <div>
+                    <label>원가</label>
+                    <input type="number" name="cost_price" min="0" step="1">
+                </div>
+                <div>
                     <label>현금가 A</label>
                     <input type="number" name="cash_price_a" min="0" step="1">
                 </div>
@@ -454,27 +490,37 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
         <div class="price-table-wrap">
             <div class="price-table-scroll">
             <table class="price-table" id="price-table">
-                <thead>
+               <thead>
+                    <?php if (is_admin()): ?>
                     <tr>
-                        <?php if (is_admin()): ?>
-                        <th class="del-col" style="display:none;width:36px">
-                            <input type="checkbox" id="check-all" onchange="toggleCheckAll(this)">
-                        </th>
-                        <?php endif; ?>
+                        <th rowspan="2" class="del-col" style="display:none;width:36px"></th>
+                        <th rowspan="2">제품번호</th>
+                        <?php if ($is_searching): ?><th rowspan="2">구분</th><?php endif; ?>
+                        <?php if ($has_brand): ?><th rowspan="2">브랜드</th><?php endif; ?>
+                        <th rowspan="2">제품명</th>
+                        <th rowspan="2">원가</th>
+                        <th colspan="2" class="group-header">A등급</th>
+                        <th colspan="2" class="group-header">B등급</th>
+                        <th colspan="2" class="group-header">C등급</th>
+                        <?php if ($has_description): ?><th rowspan="2">설명</th><?php endif; ?>
+                        <th rowspan="2" class="toggle-col">상태</th>
+                    </tr>
+                    <tr>
+                        <th>현금가</th><th>이익률</th>
+                        <th>현금가</th><th>이익률</th>
+                        <th>현금가</th><th>이익률</th>
+                    </tr>
+                    <?php else: ?>
+                    <tr>
                         <th>제품번호</th>
                         <?php if ($is_searching): ?><th>구분</th><?php endif; ?>
                         <?php if ($has_brand): ?><th>브랜드</th><?php endif; ?>
                         <th>제품명</th>
-                        <?php if (is_admin()): ?>
-                            <th>현금가 A</th>
-                            <th>현금가 B</th>
-                            <th>현금가 C</th>
-                        <?php else: ?>
-                            <th>현금가</th>
-                            <th>카드가</th>
-                        <?php endif; ?>
+                        <th>현금가 (부가세별도)</th>
+                        <th>카드가</th>
                         <?php if ($has_description): ?><th>설명</th><?php endif; ?>
                     </tr>
+                    <?php endif; ?>
                 </thead>
                 <tbody>
                 <?php foreach ($products as $product):
@@ -486,7 +532,7 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
                         $my_card = calc_card_price($my_cash);
                     }
                 ?>
-                <tr id="row-<?php echo $pid; ?>">
+                <tr id="row-<?php echo $pid; ?>" <?php echo !$product['is_active'] ? 'class="inactive-row"' : ''; ?>>
                     <?php if (is_admin()): ?>
                     <td class="del-col" style="display:none;text-align:center">
                         <input type="checkbox" class="row-checkbox" value="<?php echo $pid; ?>" onchange="toggleRowHighlight(this)">
@@ -530,15 +576,31 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
 
                     <!-- 가격 -->
                     <?php if (is_admin()): ?>
-                        <?php foreach (['cash_price_a', 'cash_price_b', 'cash_price_c'] as $col): ?>
+                        <!-- 원가 -->
                         <td class="num editable">
                             <span class="cell-display">
-                                <?php echo $product[$col] !== null ? number_format($product[$col]) . '원' : '-'; ?>
+                                <?php echo $product['cost_price'] !== null ? number_format($product['cost_price']) . '원' : '-'; ?>
                             </span>
-                            <input type="number"
-                                   name="prices[<?php echo $pid; ?>][<?php echo $col; ?>]"
-                                   value="<?php echo $product[$col] ?? ''; ?>"
-                                   style="display:none" min="0" step="1">
+                            <input type="number" name="prices[<?php echo $pid; ?>][cost_price]"
+                                value="<?php echo $product['cost_price'] ?? ''; ?>"
+                                style="display:none" min="0" step="1">
+                        </td>
+                        <!-- 현금가 A + 이익률 A / B / C -->
+                        <?php foreach (['cash_price_a' => 'A', 'cash_price_b' => 'B', 'cash_price_c' => 'C'] as $col => $grade):
+                            $cost   = $product['cost_price'];
+                            $cash   = $product[$col];
+                            $margin = ($cost > 0 && $cash !== null) ? round(($cash - $cost) / $cash * 100, 1) : null;
+                        ?>
+                        <td class="num editable">
+                            <span class="cell-display">
+                                <?php echo $cash !== null ? number_format($cash) . '원' : '-'; ?>
+                            </span>
+                            <input type="number" name="prices[<?php echo $pid; ?>][<?php echo $col; ?>]"
+                                value="<?php echo $cash ?? ''; ?>"
+                                style="display:none" min="0" step="1">
+                        </td>
+                        <td class="num margin-cell" style="<?php echo $margin !== null && $margin < 0 ? 'color:#e74c3c' : ''; ?>">
+                            <?php echo $margin !== null ? $margin . '%' : '-'; ?>
                         </td>
                         <?php endforeach; ?>
                     <?php else: ?>
@@ -553,6 +615,15 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
                         <textarea name="products[<?php echo $pid; ?>][description]"
                                 style="display:none"
                                 rows="2"><?php echo h($product['description'] ?? ''); ?></textarea>
+                    </td>
+                    <?php endif; ?>
+                    <?php if (is_admin()): ?>
+                    <td class="toggle-col">
+                        <button type="button"
+                            class="btn-toggle <?php echo $product['is_active'] ? 'active' : 'inactive'; ?>"
+                            onclick="toggleActive(<?php echo $pid; ?>, <?php echo $product['is_active'] ? 0 : 1; ?>, this)">
+                            <?php echo $product['is_active'] ? '활성' : '비활성'; ?>
+                        </button>
                     </td>
                     <?php endif; ?>
                 </tr>
@@ -637,6 +708,8 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
 </form>
 
 <script>
+const CSRF_TOKEN = '<?php echo generate_csrf_token(); ?>';
+
 /* ── 카테고리 필터 ── */
 let activeCatFilters = <?php echo json_encode($cat_filters); ?>;
 
@@ -680,12 +753,18 @@ function createSnapshot() {
     f.submit();
 }
 
+// 페이지 로드 시 비활성 행 숨기기
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.inactive-row').forEach(el => el.style.display = 'none');
+});
+
 /* ── 수정 모드 ── */
 function enableEditMode() {
     const table = document.getElementById('price-table');
     if (!table) return;
     table.classList.add('edit-mode');
     document.querySelectorAll('.tag-subrow').forEach(el => el.style.display = '');
+    document.querySelectorAll('.inactive-row').forEach(el => el.style.display = '');
     document.getElementById('btn-edit').classList.add('hidden');
     document.getElementById('btn-save').classList.remove('hidden');
     document.getElementById('btn-cancel').classList.remove('hidden');
@@ -756,6 +835,34 @@ function handleAddBrandChange(select) {
     const isNew = select.value === 'new';
     inp.style.display = isNew ? 'block' : 'none';
     if (!isNew) inp.value = '';
+}
+
+function toggleActive(pid, newState, btn) {
+    const label = newState === 1 ? '활성화' : '비활성화';
+    if (!confirm(`이 제품을 ${label}하시겠습니까?`)) return;
+
+    fetch('<?php echo BASE_URL; ?>/api/price_toggle.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `product_id=${pid}&is_active=${newState}&csrf_token=${encodeURIComponent(CSRF_TOKEN)}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) { alert(data.message); return; }
+        const row = document.getElementById(`row-${pid}`);
+        if (newState === 0) {
+            row.classList.add('inactive-row');
+            btn.textContent = '비활성';
+            btn.className = 'btn-toggle inactive';
+            btn.onclick = () => toggleActive(pid, 1, btn);
+        } else {
+            row.classList.remove('inactive-row');
+            btn.textContent = '활성';
+            btn.className = 'btn-toggle active';
+            btn.onclick = () => toggleActive(pid, 0, btn);
+        }
+    })
+    .catch(() => alert('오류가 발생했습니다.'));
 }
 
 /* ── 태그 관리 ── */

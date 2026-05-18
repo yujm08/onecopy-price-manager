@@ -37,13 +37,15 @@ $current_user = get_current_login_user();
     </nav>
     <?php endif; ?>
     <div class="drawer-footer">
+        <a href="<?php echo BASE_URL; ?>/change_password.php" class="drawer-link">비밀번호 변경</a>
         <span class="drawer-user-info">
-            (<?php echo h($current_user['company_name']); ?>)
+            <?php echo h($current_user['company_name']); ?>
             <?php if ($current_user['is_admin']): ?>
-                <span class="badge-admin">계정 유형</span>
+                <span class="badge-admin">관리자</span>
+            <?php else: ?>
+                <span class="badge-normal">일반 업체</span>
             <?php endif; ?>
         </span>
-        <a href="<?php echo BASE_URL; ?>/change_password.php" class="drawer-link">비밀번호 변경</a>
     </div>
 </div>
 

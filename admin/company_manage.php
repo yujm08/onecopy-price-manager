@@ -194,18 +194,18 @@ $companies = $stmt->fetchAll();
                     <td class="action-cell">
                         <button class="btn-edit-row" onclick="openEditModal(
                             <?php echo $c['id']; ?>,
-                            <?php echo json_encode($c['company_name']); ?>,
-                            <?php echo json_encode($c['representative_name']); ?>,
-                            <?php echo json_encode($c['manager_name']); ?>,
-                            <?php echo json_encode($c['phone'] ?? ''); ?>,
-                            <?php echo json_encode($c['address'] ?? ''); ?>,
-                            <?php echo json_encode($c['grade'] ?? ''); ?>,
+                            <?php echo h(json_encode($c['company_name'])); ?>,
+                            <?php echo h(json_encode($c['representative_name'])); ?>,
+                            <?php echo h(json_encode($c['manager_name'])); ?>,
+                            <?php echo h(json_encode($c['phone'] ?? '')); ?>,
+                            <?php echo h(json_encode($c['address'] ?? '')); ?>,
+                            <?php echo h(json_encode($c['grade'] ?? '')); ?>,
                             <?php echo $c['is_admin'] ? 'true' : 'false'; ?>
                         )">수정</button>
                         <button class="btn-delete-row"
                             <?php echo $c['is_admin'] ? 'disabled title="관리자 계정은 삭제할 수 없습니다."' : ''; ?>
                             <?php if (!$c['is_admin']): ?>
-                            onclick="confirmDelete(<?php echo $c['id']; ?>, <?php echo json_encode($c['company_name']); ?>)"
+                            onclick="confirmDelete(<?php echo $c['id']; ?>, <?php echo h(json_encode($c['company_name'])); ?>)"
                             <?php endif; ?>
                         >삭제</button>
                     </td>

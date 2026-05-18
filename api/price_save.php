@@ -81,6 +81,7 @@ try {
     $saved = 0;
     foreach ($prices_data as $pid => $price_data) {
         $pid  = (int)$pid;
+        $cost = isset($price_data['cost_price']) && $price_data['cost_price'] !== '' ? (int)$price_data['cost_price'] : null;
         $pa   = isset($price_data['cash_price_a']) && $price_data['cash_price_a'] !== '' ? (int)$price_data['cash_price_a'] : null;
         $pb   = isset($price_data['cash_price_b']) && $price_data['cash_price_b'] !== '' ? (int)$price_data['cash_price_b'] : null;
         $pc   = isset($price_data['cash_price_c']) && $price_data['cash_price_c'] !== '' ? (int)$price_data['cash_price_c'] : null;
@@ -95,17 +96,17 @@ try {
 
         if ($exists->fetch()) {
             $stmt = $pdo->prepare("
-                UPDATE prices SET cash_price_a=?, cash_price_b=?, cash_price_c=?,
+                UPDATE prices SET cash_price_a=?, cash_price_b=?, cash_price_c=?, cost_price=?,
                     updated_by_company_id=?, updated_at=NOW()
                 WHERE product_id=? AND price_month=?
             ");
-            $stmt->execute([$pa, $pb, $pc, $current_user['id'], $pid, $price_month]);
+            $stmt->execute([$pa, $pb, $pc, $cost, $current_user['id'], $pid, $price_month]);
             if ($stmt->rowCount() > 0) $saved++;
         } else {
             $pdo->prepare("
-                INSERT INTO prices (product_id, price_month, cash_price_a, cash_price_b, cash_price_c, updated_by_company_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ")->execute([$pid, $price_month, $pa, $pb, $pc, $current_user['id']]);
+                INSERT INTO prices (product_id, price_month, cash_price_a, cash_price_b, cash_price_c, cost_price, updated_by_company_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ")->execute([$pid, $price_month, $pa, $pb, $pc, $cost, $current_user['id']]);
             $saved++;
         }
     }

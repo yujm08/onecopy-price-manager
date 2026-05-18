@@ -31,12 +31,12 @@ document.addEventListener('keydown', function(e) {
         e.preventDefault();
         return false;
     }
-    F12 (개발자도구)
-    if (e.key === 'F12') {
-        e.preventDefault();
-        return false;
-    }
-    Ctrl+Shift+I / Ctrl+Shift+J (개발자도구)
+    // F12 (개발자도구)
+    // if (e.key === 'F12') {
+    //     e.preventDefault();
+    //     return false;
+    // }
+    // Ctrl+Shift+I / Ctrl+Shift+J (개발자도구)
     if (e.ctrlKey && e.shiftKey && ['i', 'j'].includes(e.key.toLowerCase())) {
         e.preventDefault();
         return false;
