@@ -16,15 +16,13 @@ $current_user = get_current_login_user();
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
 </head>
 <body>
-    <!-- 모바일 오버레이 -->
 <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
 
-<!-- 사이드 드로어 -->
 <div class="side-drawer" id="side-drawer">
     <div class="drawer-header">
         <h1><a href="<?php echo BASE_URL; ?>/admin/price_manage.php" style="text-decoration:none;color:inherit;">가격관리 시스템</a></h1>
     </div>
-    <?php if ($current_user['is_admin']): ?>
+    <?php if (is_admin()): ?>
     <nav class="drawer-nav">
         <a href="<?php echo BASE_URL; ?>/admin/price_manage.php"
             class="<?php echo basename($_SERVER['PHP_SELF']) === 'price_manage.php' ? 'active' : ''; ?>">
@@ -40,8 +38,10 @@ $current_user = get_current_login_user();
         <a href="<?php echo BASE_URL; ?>/change_password.php" class="drawer-link">비밀번호 변경</a>
         <span class="drawer-user-info">
             <?php echo h($current_user['company_name']); ?>
-            <?php if ($current_user['is_admin']): ?>
-                <span class="badge-admin">관리자</span>
+            <?php if (is_superadmin()): ?>
+                <span class="badge-admin">슈퍼관리자</span>
+            <?php elseif (is_admin()): ?>
+                <span class="badge-admin" style="background:#2980b9;">관리자</span>
             <?php else: ?>
                 <span class="badge-normal">일반 업체</span>
             <?php endif; ?>
@@ -50,16 +50,13 @@ $current_user = get_current_login_user();
 </div>
 
 <header class="main-header">
-    <!-- 모바일: 햄버거 -->
     <button class="btn-hamburger" onclick="toggleDrawer()">☰</button>
 
-    <!-- 데스크탑: 로고 -->
     <div class="header-left">
         <h1><a href="<?php echo BASE_URL; ?>/admin/price_manage.php" style="text-decoration:none;color:inherit;">가격관리 시스템</a></h1>
     </div>
 
-    <!-- 데스크탑: 네비 -->
-    <?php if ($current_user['is_admin']): ?>
+    <?php if (is_admin()): ?>
     <div class="header-center">
         <nav class="nav-tabs">
             <a href="<?php echo BASE_URL; ?>/admin/price_manage.php"
@@ -74,12 +71,13 @@ $current_user = get_current_login_user();
     </div>
     <?php endif; ?>
 
-    <!-- 데스크탑: 우측 / 모바일: 로그아웃만 -->
     <div class="header-right">
         <span class="user-info desktop-only">
             <?php echo h($current_user['company_name']); ?>
-            <?php if ($current_user['is_admin']): ?>
-                <span class="badge-admin">관리자</span>
+            <?php if (is_superadmin()): ?>
+                <span class="badge-admin">슈퍼관리자</span>
+            <?php elseif (is_admin()): ?>
+                <span class="badge-admin" style="background:#2980b9;">관리자</span>
             <?php endif; ?>
         </span>
         <a href="<?php echo BASE_URL; ?>/change_password.php" class="btn-change-pw desktop-only">비밀번호 변경</a>

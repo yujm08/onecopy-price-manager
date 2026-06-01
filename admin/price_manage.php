@@ -318,9 +318,11 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
         </div>
         <button onclick="moveMonth(1)">▶</button>
         <input type="month" id="month-picker" value="<?php echo h($selected_month); ?>"
-                onchange="changeMonth(this.value)"
-                style="position:absolute;opacity:0;pointer-events:none;">
+        onchange="changeMonth(this.value)"
+        style="position:absolute;opacity:0;pointer-events:none;">
+        <?php if (is_superadmin()): ?>
         <button class="btn-snapshot" onclick="createSnapshot()">스냅샷 생성</button>
+        <?php endif; ?>
     </div>
     <?php else: ?>
     <div style="font-size:18px;font-weight:700;margin-bottom:20px;">
@@ -390,7 +392,7 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
         <div style="font-size:13px;color:#888;">전체 카테고리 검색 결과</div>
         <?php endif; ?>
 
-        <?php if (is_admin()): ?>
+        <?php if (is_superadmin()): ?>
         <div class="admin-buttons">
             <button class="btn-edit"        id="btn-edit"        onclick="enableEditMode()">수정</button>
             <button class="btn-save  hidden" id="btn-save"        onclick="savePrices()">저장</button>
@@ -402,7 +404,7 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
     </div>
 
     <!-- 행 추가 폼 (관리자, 비검색) -->
-    <?php if (is_admin() && !$is_searching): ?>
+    <?php if (is_superadmin() && !$is_searching): ?>
     <div id="add-product-form" class="add-product-form hidden">
         <h3>새 제품 추가</h3>
         <form method="POST" action="<?php echo BASE_URL; ?>/api/price_add_row.php">
@@ -581,11 +583,12 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
                             <span class="cell-display">
                                 <?php echo $product['cost_price'] !== null ? number_format($product['cost_price']) . '원' : '-'; ?>
                             </span>
+                            <?php if (is_superadmin()): ?>
                             <input type="number" name="prices[<?php echo $pid; ?>][cost_price]"
                                 value="<?php echo $product['cost_price'] ?? ''; ?>"
                                 style="display:none" min="0" step="1">
+                            <?php endif; ?>
                         </td>
-                        <!-- 현금가 A + 이익률 A / B / C -->
                         <?php foreach (['cash_price_a' => 'A', 'cash_price_b' => 'B', 'cash_price_c' => 'C'] as $col => $grade):
                             $cost   = $product['cost_price'];
                             $cash   = $product[$col];
@@ -595,9 +598,11 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
                             <span class="cell-display">
                                 <?php echo $cash !== null ? number_format($cash) . '원' : '-'; ?>
                             </span>
+                            <?php if (is_superadmin()): ?>
                             <input type="number" name="prices[<?php echo $pid; ?>][<?php echo $col; ?>]"
                                 value="<?php echo $cash ?? ''; ?>"
                                 style="display:none" min="0" step="1">
+                            <?php endif; ?>
                         </td>
                         <td class="num margin-cell" style="<?php echo $margin !== null && $margin < 0 ? 'color:#e74c3c' : ''; ?>">
                             <?php echo $margin !== null ? $margin . '%' : '-'; ?>
@@ -617,7 +622,7 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
                                 rows="2"><?php echo h($product['description'] ?? ''); ?></textarea>
                     </td>
                     <?php endif; ?>
-                    <?php if (is_admin()): ?>
+                    <?php if (is_superadmin()): ?>
                     <td class="toggle-col">
                         <button type="button"
                             class="btn-toggle <?php echo $product['is_active'] ? 'active' : 'inactive'; ?>"
@@ -627,7 +632,7 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
                     </td>
                     <?php endif; ?>
                 </tr>
-                    <?php if (is_admin()): ?>
+                    <?php if (is_superadmin()): ?>
                     <tr class="tag-subrow" id="tag-row-<?php echo $pid; ?>" style="display:none">
                         <td colspan="20">
                             <div class="tag-edit-row" id="tag-edit-<?php echo $pid; ?>">
@@ -674,7 +679,7 @@ $user_grade = strtolower($_SESSION['grade'] ?? '');
     <?php endif; // empty products ?>
 
     <!-- 행 추가 버튼 -->
-    <?php if (is_admin() && !$is_searching): ?>
+    <?php if (is_superadmin() && !$is_searching): ?>
     <button class="btn-add-row" onclick="showAddForm()">+ 행 추가</button>
     <?php endif; ?>
 </div>

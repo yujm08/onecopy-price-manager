@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../config/config.php';
 
-require_admin();
+require_superadmin();
 
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     $_SESSION['error_message'] = '보안 토큰이 유효하지 않습니다.';

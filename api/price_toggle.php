@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 // 관리자 권한 확인
-require_admin();
+require_superadmin();
 
 // JSON 응답 헤더
 header('Content-Type: application/json');

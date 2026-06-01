@@ -40,9 +40,9 @@ $total_count = $total_count->fetchColumn();
 $total_pages = (int)ceil($total_count / $per_page);
 
 $stmt = $pdo->prepare("
-    SELECT id, company_name, representative_name, manager_name, phone, address, grade, is_admin
+    SELECT id, company_name, representative_name, manager_name, phone, address, grade, role
     FROM companies $where
-    ORDER BY is_admin DESC, company_name ASC
+    ORDER BY FIELD(role,'superadmin','admin','user'), company_name ASC
     LIMIT $per_page OFFSET $offset
 ");
 $stmt->execute($params);
@@ -70,6 +70,7 @@ $companies = $stmt->fetchAll();
 .company-table tbody tr:last-child td { border-bottom:none; }
 .company-table tbody tr:hover { background:#f8f9fa; }
 .badge-admin { background:#e74c3c; color:white; padding:2px 7px; border-radius:3px; font-size:11px; margin-left:4px; display:inline-block; vertical-align:middle; white-space:nowrap; }
+.badge-admin-role { background:#2980b9; }
 .badge-grade { padding:2px 8px; border-radius:3px; font-size:12px; font-weight:600; white-space:nowrap; }
 @media (max-width: 768px) {
     .grade-full { display:none; }
@@ -154,7 +155,9 @@ $companies = $stmt->fetchAll();
 
     <div class="table-header">
         <span class="total-count">총 <strong><?php echo $total_count; ?></strong>개 업체</span>
-        <button class="btn-add" onclick="openAddModal()">+ 업체 등록</button>
+        <?php if (is_superadmin()): ?>
+            <button class="btn-add" onclick="openAddModal()">+ 업체 등록</button>
+        <?php endif; ?>
     </div>
 
     <div class="company-table-wrap">
@@ -178,7 +181,11 @@ $companies = $stmt->fetchAll();
                 <tr>
                     <td>
                         <?php echo h($c['company_name']); ?>
-                        <?php if ($c['is_admin']): ?><span class="badge-admin">관리자</span><?php endif; ?>
+                        <?php if ($c['role'] === 'superadmin'): ?>
+                            <span class="badge-admin">슈퍼관리자</span>
+                        <?php elseif ($c['role'] === 'admin'): ?>
+                            <span class="badge-admin badge-admin-role">관리자</span>
+                        <?php endif; ?>
                     </td>
                     <td><?php echo h($c['representative_name']); ?></td>
                     <td><?php echo h($c['manager_name']); ?></td>
@@ -192,6 +199,7 @@ $companies = $stmt->fetchAll();
                     </td>
                     <td><?php echo h($c['address'] ?? '-'); ?></td>
                     <td class="action-cell">
+                        <?php if (is_superadmin()): ?>
                         <button class="btn-edit-row" onclick="openEditModal(
                             <?php echo $c['id']; ?>,
                             <?php echo h(json_encode($c['company_name'])); ?>,
@@ -200,14 +208,17 @@ $companies = $stmt->fetchAll();
                             <?php echo h(json_encode($c['phone'] ?? '')); ?>,
                             <?php echo h(json_encode($c['address'] ?? '')); ?>,
                             <?php echo h(json_encode($c['grade'] ?? '')); ?>,
-                            <?php echo $c['is_admin'] ? 'true' : 'false'; ?>
+                            <?php echo h(json_encode($c['role'])); ?>
                         )">수정</button>
                         <button class="btn-delete-row"
-                            <?php echo $c['is_admin'] ? 'disabled title="관리자 계정은 삭제할 수 없습니다."' : ''; ?>
-                            <?php if (!$c['is_admin']): ?>
+                            <?php echo $c['role'] === 'superadmin' ? 'disabled title="슈퍼 관리자 계정은 삭제할 수 없습니다."' : ''; ?>
+                            <?php if ($c['role'] !== 'superadmin'): ?>
                             onclick="confirmDelete(<?php echo $c['id']; ?>, <?php echo h(json_encode($c['company_name'])); ?>)"
                             <?php endif; ?>
                         >삭제</button>
+                        <?php else: ?>
+                        <span style="color:#aaa;font-size:13px;">-</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -297,9 +308,10 @@ $companies = $stmt->fetchAll();
 
             <div class="form-group">
                 <label>계정 유형</label>
-                <select name="is_admin" id="input-is-admin" onchange="toggleGradeField(this)">
-                    <option value="0">일반 업체</option>
-                    <option value="1">관리자</option>
+                <select name="role" id="input-role" onchange="toggleGradeField(this)">
+                    <option value="user">일반 업체</option>
+                    <option value="admin">관리자 (조회 전용)</option>
+                    <option value="superadmin">슈퍼 관리자</option>
                 </select>
             </div>
 
@@ -323,64 +335,57 @@ $companies = $stmt->fetchAll();
 
 <script>
 function toggleGradeField(select) {
-    const gradeGroup = document.getElementById('grade-group');
+    const isAdminRole = select.value !== 'user';
+    const gradeGroup  = document.getElementById('grade-group');
     const gradeSelect = document.getElementById('input-grade');
-    const pwHint = document.getElementById('pw-hint');
-    if (select.value === '1') {
-        gradeGroup.style.display = 'none';
-        gradeSelect.required = false;
-        gradeSelect.value = '';
-        pwHint.style.display = 'none';
+    const pwHint      = document.getElementById('pw-hint');
+    if (isAdminRole) {
+        gradeGroup.style.display  = 'none';
+        gradeSelect.required      = false;
+        gradeSelect.value         = '';
+        pwHint.style.display      = 'none';
     } else {
-        gradeGroup.style.display = 'block';
-        gradeSelect.required = true;
-        pwHint.style.display = 'block';
+        gradeGroup.style.display  = 'block';
+        gradeSelect.required      = true;
+        pwHint.style.display      = 'block';
     }
 }
 
 function openAddModal() {
-    document.getElementById('modal-title').textContent         = '업체 등록';
-    document.getElementById('form-action').value              = 'add';
-    document.getElementById('form-company-id').value          = '';
-    document.getElementById('input-company-name').value       = '';
-    document.getElementById('input-rep-name').value           = '';
-    document.getElementById('input-mgr-name').value           = '';
-    document.getElementById('input-phone').value              = '';
-    document.getElementById('input-grade').value              = '';
-    document.getElementById('input-address').value            = '';
-    document.getElementById('input-is-admin').value           = '0';
-    document.getElementById('modal-submit-btn').textContent   = '등록';
-    document.getElementById('grade-group').style.display      = 'block';
-    document.getElementById('input-grade').required           = true;
-    document.getElementById('pw-hint').style.display          = 'block';
+    document.getElementById('modal-title').textContent       = '업체 등록';
+    document.getElementById('form-action').value            = 'add';
+    document.getElementById('form-company-id').value        = '';
+    document.getElementById('input-company-name').value     = '';
+    document.getElementById('input-rep-name').value         = '';
+    document.getElementById('input-mgr-name').value         = '';
+    document.getElementById('input-phone').value            = '';
+    document.getElementById('input-grade').value            = '';
+    document.getElementById('input-address').value          = '';
+    document.getElementById('input-role').value             = 'user';
+    document.getElementById('modal-submit-btn').textContent = '등록';
+    document.getElementById('grade-group').style.display    = 'block';
+    document.getElementById('input-grade').required         = true;
+    document.getElementById('pw-hint').style.display        = 'block';
     document.getElementById('company-modal').classList.add('active');
 }
 
-function openEditModal(id, name, repName, mgrName, phone, address, grade, isAdmin) {
-    document.getElementById('modal-title').textContent        = '업체 수정';
-    document.getElementById('form-action').value             = 'edit';
-    document.getElementById('form-company-id').value         = id;
-    document.getElementById('input-company-name').value      = name;
-    document.getElementById('input-rep-name').value          = repName;
-    document.getElementById('input-mgr-name').value          = mgrName;
-    document.getElementById('input-phone').value             = phone;
-    document.getElementById('input-grade').value             = grade;
-    document.getElementById('input-address').value           = address;
-    document.getElementById('input-is-admin').value          = isAdmin ? '1' : '0';
-    document.getElementById('modal-submit-btn').textContent  = '저장';
+function openEditModal(id, name, repName, mgrName, phone, address, grade, role) {
+    document.getElementById('modal-title').textContent       = '업체 수정';
+    document.getElementById('form-action').value            = 'edit';
+    document.getElementById('form-company-id').value        = id;
+    document.getElementById('input-company-name').value     = name;
+    document.getElementById('input-rep-name').value         = repName;
+    document.getElementById('input-mgr-name').value         = mgrName;
+    document.getElementById('input-phone').value            = phone;
+    document.getElementById('input-grade').value            = grade;
+    document.getElementById('input-address').value          = address;
+    document.getElementById('input-role').value             = role;
+    document.getElementById('modal-submit-btn').textContent = '저장';
 
-    // 관리자면 등급 숨김
-    const gradeGroup = document.getElementById('grade-group');
-    const pwHint = document.getElementById('pw-hint');
-    if (isAdmin) {
-        gradeGroup.style.display = 'none';
-        document.getElementById('input-grade').required = false;
-        pwHint.style.display = 'none';
-    } else {
-        gradeGroup.style.display = 'block';
-        document.getElementById('input-grade').required = true;
-        pwHint.style.display = 'none'; // 수정 시엔 비번 힌트 불필요
-    }
+    const isAdminRole = role !== 'user';
+    document.getElementById('grade-group').style.display    = isAdminRole ? 'none' : 'block';
+    document.getElementById('input-grade').required         = !isAdminRole;
+    document.getElementById('pw-hint').style.display        = 'none'; // 수정 시 불필요
 
     document.getElementById('company-modal').classList.add('active');
 }

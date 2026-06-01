@@ -3,7 +3,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../config/config.php';
 
-require_admin();
+require_superadmin();
 
 $price_month = $_POST['price_month'] ?? '';
 $category_id = $_POST['category_id'] ?? 1;
