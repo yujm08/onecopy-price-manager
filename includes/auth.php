@@ -21,7 +21,6 @@ function login($company_name, $password_input) {
         $users = $stmt->fetchAll();
 
         if (empty($users)) {
-            record_login_failure();
             return ['success' => false, 'message' => '업체명 또는 비밀번호가 일치하지 않습니다.'];
         }
 
@@ -34,12 +33,10 @@ function login($company_name, $password_input) {
         }
 
         if (!$user) {
-            record_login_failure();
             return ['success' => false, 'message' => '업체명 또는 비밀번호가 일치하지 않습니다.'];
         }
 
         session_regenerate_id(true);
-        reset_login_attempts();
 
         $_SESSION['user_id']      = $user['id'];
         $_SESSION['company_name'] = $user['company_name'];
@@ -130,22 +127,48 @@ function verify_csrf_token($token) {
     return hash_equals($_SESSION['csrf_token'], $token);
 }
 
-function check_login_attempts() {
-    $count = $_SESSION['login_fail_count'] ?? 0;
-    $last  = $_SESSION['login_fail_time']  ?? 0;
-    if (time() - $last > 1800) {
-        unset($_SESSION['login_fail_count'], $_SESSION['login_fail_time']);
-        return true;
+function get_block_status(PDO $pdo, string $ip): array {
+    $window = date('Y-m-d H:i:s', strtotime('-30 minutes'));
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) as cnt, MAX(attempted_at) as last_attempt
+        FROM login_attempts 
+        WHERE ip = ? AND attempted_at > ?"
+    );
+    $stmt->execute([$ip, $window]);
+    $row = $stmt->fetch();
+
+    if ((int)$row['cnt'] < 10) {
+        return ['blocked' => false];
     }
-    return $count < 5;
+    
+    $last = strtotime($row['last_attempt']);
+    $remaining = ($last + 1800) - time(); // 1800초 = 30분
+    $remaining = max(0, $remaining);
+
+    $min = (int)floor($remaining / 60);
+    $sec = $remaining % 60;
+
+    return [
+        'blocked'   => true,
+        'remaining' => $remaining,
+        'label'     => $min > 0 ? "{$min}분 {$sec}초" : "{$sec}초",
+    ];
 }
 
-function record_login_failure() {
-    $_SESSION['login_fail_count'] = ($_SESSION['login_fail_count'] ?? 0) + 1;
-    $_SESSION['login_fail_time']  = time();
+function record_login_fail(PDO $pdo, string $ip): void {
+    $stmt = $pdo->prepare(
+        "INSERT INTO login_attempts (ip, attempted_at) VALUES (?, NOW())"
+    );
+    $stmt->execute([$ip]);
 }
 
-function reset_login_attempts() {
-    unset($_SESSION['login_fail_count'], $_SESSION['login_fail_time']);
+function cleanup_login_attempts(PDO $pdo): void {
+    if (rand(1, 100) === 1) {
+        $pdo->exec(
+            "DELETE FROM login_attempts 
+            WHERE attempted_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)"
+        );
+    }
 }
+
 ?>
