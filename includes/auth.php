@@ -162,13 +162,4 @@ function record_login_fail(PDO $pdo, string $ip): void {
     $stmt->execute([$ip]);
 }
 
-function cleanup_login_attempts(PDO $pdo): void {
-    if (rand(1, 100) === 1) {
-        $pdo->exec(
-            "DELETE FROM login_attempts 
-            WHERE attempted_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)"
-        );
-    }
-}
-
 ?>

@@ -17,8 +17,6 @@ if (($_GET['reason'] ?? '') === 'timeout') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ip = $_SERVER['REMOTE_ADDR'];
 
-    cleanup_login_attempts($pdo); // 간헐적 오래된 기록 정리
-
     $company_name   = trim($_POST['company_name'] ?? '');
     $password_input = trim($_POST['password'] ?? '');
 
