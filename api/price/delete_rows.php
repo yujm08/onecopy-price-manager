@@ -1,6 +1,4 @@
 <?php
-// api/price_delete_rows.php
-// 제품 삭제 처리 (관리자 전용)
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -73,7 +71,7 @@ try {
     }
 
 } catch (PDOException $e) {
-    error_log('price_delete_rows error: ' . $e->getMessage());
+    error_log('price/delete_rows error: ' . $e->getMessage());
     $_SESSION['error_message'] = '삭제 중 오류가 발생했습니다.';
 }
 

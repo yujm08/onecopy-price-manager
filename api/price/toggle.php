@@ -1,7 +1,4 @@
 <?php
-// api/price_toggle.php
-// 제품 활성/비활성 토글 처리 (관리자 전용)
-
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 

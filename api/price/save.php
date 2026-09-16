@@ -170,7 +170,7 @@ try {
 
 } catch (Exception $e) {
     $pdo->rollBack();
-    error_log('price_save: ' . $e->getMessage());
+    error_log('price/save: ' . $e->getMessage());
     $_SESSION['error_message'] = '저장 중 오류가 발생했습니다.';
 }
 

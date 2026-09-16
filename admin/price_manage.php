@@ -580,7 +580,7 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
     ?>
     <div id="category-manage-panel" class="category-manage-panel hidden">
         <h3>카테고리 관리</h3>
-        <form id="category-manage-form" method="POST" action="<?php echo BASE_URL; ?>/api/category_save.php">
+        <form id="category-manage-form" method="POST" action="<?php echo BASE_URL; ?>/api/category/save.php">
             <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
                         <div class="category-manage-list" id="category-manage-list">
                 <?php foreach ($all_categories as $cat): ?>
@@ -607,7 +607,7 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
     <?php if (is_superadmin() && !$is_searching && !$is_previewing): ?>
     <div id="formula-panel" class="formula-panel hidden">
         <h3><?php echo h($selected_category['category_name'] ?? ''); ?> — 카테고리 가격 수식</h3>
-        <form id="formula-form" method="POST" action="<?php echo BASE_URL; ?>/api/category_formula_save.php">
+        <form id="formula-form" method="POST" action="<?php echo BASE_URL; ?>/api/category/formula_save.php">
             <input type="hidden" name="csrf_token"  value="<?php echo generate_csrf_token(); ?>">
             <input type="hidden" name="category_id" value="<?php echo $selected_category_id; ?>">
             <input type="hidden" name="price_month" value="<?php echo $selected_month_full; ?>">
@@ -652,7 +652,7 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
     <?php if (is_superadmin() && !$is_searching && !$is_previewing): ?>
     <div id="add-product-form" class="add-product-form hidden">
         <h3>새 제품 추가</h3>
-        <form method="POST" action="<?php echo BASE_URL; ?>/api/price_add_row.php">
+        <form method="POST" action="<?php echo BASE_URL; ?>/api/price/add_row.php">
             <input type="hidden" name="csrf_token"   value="<?php echo generate_csrf_token(); ?>">
             <input type="hidden" name="price_month"  value="<?php echo $selected_month_full; ?>">
 
@@ -733,7 +733,7 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
     </div>
     <?php else: ?>
 
-    <form id="price-form" method="POST" action="<?php echo BASE_URL; ?>/api/price_save.php">
+    <form id="price-form" method="POST" action="<?php echo BASE_URL; ?>/api/price/save.php">
         <input type="hidden" name="csrf_token"  value="<?php echo generate_csrf_token(); ?>">
         <input type="hidden" name="price_month" value="<?php echo $selected_month_full; ?>">
         <input type="hidden" name="category_id" value="<?php echo $selected_category_id; ?>">
@@ -1006,7 +1006,7 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
     ">↑</button>
 
 <!-- 삭제 폼 -->
-<form id="delete-form" method="POST" action="<?php echo BASE_URL; ?>/api/price_delete_rows.php" style="display:none">
+<form id="delete-form" method="POST" action="<?php echo BASE_URL; ?>/api/price/delete_rows.php" style="display:none">
     <input type="hidden" name="csrf_token"  value="<?php echo generate_csrf_token(); ?>">
     <input type="hidden" name="price_month" value="<?php echo $selected_month_full; ?>">
     <input type="hidden" name="category_id" value="<?php echo $selected_category_id; ?>">
@@ -1329,7 +1329,7 @@ function toggleActive(pid, newState, btn) {
     const label = newState === 1 ? '활성화' : '비활성화';
     if (!confirm(`이 제품을 ${label}하시겠습니까?`)) return;
 
-    fetch('<?php echo BASE_URL; ?>/api/price_toggle.php', {
+    fetch('<?php echo BASE_URL; ?>/api/price/toggle.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `product_id=${pid}&is_active=${newState}&csrf_token=${encodeURIComponent(CSRF_TOKEN)}`
