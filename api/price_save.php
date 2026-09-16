@@ -22,6 +22,29 @@ $products_data = $_POST['products'] ?? [];
 $prices_data   = $_POST['prices']   ?? [];
 $current_user  = get_current_login_user();
 
+// 이 카테고리의 가격 수식 조회 (자동계산 등급은 서버에서 재계산해서 신뢰)
+$formula_stmt = $pdo->prepare("SELECT * FROM category_price_formulas WHERE category_id = ?");
+$formula_stmt->execute([$category_id]);
+$formula = $formula_stmt->fetch();
+
+$formula_rules = [];
+if ($formula) {
+    $rstmt = $pdo->prepare("SELECT * FROM category_price_formula_rules WHERE formula_id = ?");
+    $rstmt->execute([$formula['id']]);
+    foreach ($rstmt->fetchAll() as $r) {
+        $formula_rules[$r['target_grade']] = $r;
+    }
+}
+
+function calc_formula_price($base_price, $calc_type, $calc_value) {
+    switch ($calc_type) {
+        case 'percent':         return (int) round($base_price * (1 + $calc_value / 100));
+        case 'amount_add':      return (int) round($base_price + $calc_value);
+        case 'amount_subtract': return (int) round($base_price - $calc_value);
+        default: return null;
+    }
+}
+
 try {
     $pdo->beginTransaction();
 
@@ -81,14 +104,38 @@ try {
     $saved = 0;
     foreach ($prices_data as $pid => $price_data) {
         $pid  = (int)$pid;
+        $purchase = isset($price_data['purchase_price']) && $price_data['purchase_price'] !== '' ? (int)$price_data['purchase_price'] : null;
         $cost = isset($price_data['cost_price']) && $price_data['cost_price'] !== '' ? (int)$price_data['cost_price'] : null;
         $pa   = isset($price_data['cash_price_a']) && $price_data['cash_price_a'] !== '' ? (int)$price_data['cash_price_a'] : null;
         $pb   = isset($price_data['cash_price_b']) && $price_data['cash_price_b'] !== '' ? (int)$price_data['cash_price_b'] : null;
         $pc   = isset($price_data['cash_price_c']) && $price_data['cash_price_c'] !== '' ? (int)$price_data['cash_price_c'] : null;
 
+        $manual_a = !empty($price_data['cash_price_a_manual']) ? 1 : 0;
+        $manual_b = !empty($price_data['cash_price_b_manual']) ? 1 : 0;
+        $manual_c = !empty($price_data['cash_price_c_manual']) ? 1 : 0;
+
         if ($pa === null && $pb === null && $pc === null) {
             $pdo->prepare("DELETE FROM prices WHERE product_id=? AND price_month=?")->execute([$pid, $price_month]);
             continue;
+        }
+
+        // 이 카테고리에 수식이 있으면, 자물쇠 풀린(자동) 등급은 서버에서 다시 계산 (클라이언트 값 신뢰 안 함)
+        if ($formula) {
+            $base_grade = $formula['base_grade'];
+            $vals   = ['A' => $pa, 'B' => $pb, 'C' => $pc];
+            $manual = ['A' => $manual_a, 'B' => $manual_b, 'C' => $manual_c];
+            $base_val = $vals[$base_grade];
+
+            if ($base_val !== null) {
+                foreach (['A', 'B', 'C'] as $g) {
+                    if ($g === $base_grade || $manual[$g]) continue;
+                    $rule = $formula_rules[$g] ?? null;
+                    if ($rule) {
+                        $vals[$g] = calc_formula_price($base_val, $rule['calc_type'], $rule['calc_value']);
+                    }
+                }
+            }
+            $pa = $vals['A']; $pb = $vals['B']; $pc = $vals['C'];
         }
 
         $exists = $pdo->prepare("SELECT id FROM prices WHERE product_id=? AND price_month=?");
@@ -96,17 +143,21 @@ try {
 
         if ($exists->fetch()) {
             $stmt = $pdo->prepare("
-                UPDATE prices SET cash_price_a=?, cash_price_b=?, cash_price_c=?, cost_price=?,
+                UPDATE prices SET cash_price_a=?, cash_price_b=?, cash_price_c=?, purchase_price=?, cost_price=?,
+                    cash_price_a_manual=?, cash_price_b_manual=?, cash_price_c_manual=?,
                     updated_by_company_id=?, updated_at=NOW()
                 WHERE product_id=? AND price_month=?
             ");
-            $stmt->execute([$pa, $pb, $pc, $cost, $current_user['id'], $pid, $price_month]);
+            $stmt->execute([$pa, $pb, $pc, $purchase, $cost, $manual_a, $manual_b, $manual_c, $current_user['id'], $pid, $price_month]);
             if ($stmt->rowCount() > 0) $saved++;
         } else {
-            $pdo->prepare("
-                INSERT INTO prices (product_id, price_month, cash_price_a, cash_price_b, cash_price_c, cost_price, updated_by_company_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ")->execute([$pid, $price_month, $pa, $pb, $pc, $cost, $current_user['id']]);
+                        $pdo->prepare("
+                INSERT INTO prices (
+                    product_id, price_month, cash_price_a, cash_price_b, cash_price_c, purchase_price, cost_price,
+                    cash_price_a_manual, cash_price_b_manual, cash_price_c_manual, updated_by_company_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ")->execute([$pid, $price_month, $pa, $pb, $pc, $purchase, $cost, $manual_a, $manual_b, $manual_c, $current_user['id']]);
             $saved++;
         }
     }

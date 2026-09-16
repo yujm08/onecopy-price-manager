@@ -1,5 +1,4 @@
 <?php
-// api/create_snapshot.php
 
 $is_cli     = (php_sapi_name() === 'cli');
 $is_cron_url = !$is_cli && isset($_GET['key']);
@@ -47,9 +46,16 @@ function create_monthly_snapshot($pdo, $target_month = null) {
         }
 
         $stmt = $pdo->prepare("
-            INSERT INTO prices (product_id, price_month, cash_price_a, cash_price_b, cash_price_c, cost_price, updated_by_company_id)
+            INSERT INTO prices (
+                product_id, price_month,
+                cash_price_a, cash_price_b, cash_price_c, purchase_price, cost_price,
+                cash_price_a_manual, cash_price_b_manual, cash_price_c_manual,
+                updated_by_company_id
+            )
             SELECT p.product_id, ? AS price_month,
-                p.cash_price_a, p.cash_price_b, p.cash_price_c, p.cost_price, NULL
+                p.cash_price_a, p.cash_price_b, p.cash_price_c, p.purchase_price, p.cost_price,
+                p.cash_price_a_manual, p.cash_price_b_manual, p.cash_price_c_manual,
+                NULL
             FROM prices p
             WHERE p.price_month = ?
             AND (p.cash_price_a IS NOT NULL OR p.cash_price_b IS NOT NULL OR p.cash_price_c IS NOT NULL)
@@ -65,12 +71,16 @@ function create_monthly_snapshot($pdo, $target_month = null) {
             UPDATE prices t
             JOIN prices p ON t.product_id = p.product_id AND p.price_month = ?
             SET
+                t.cash_price_a_manual = IF(t.cash_price_a IS NULL, p.cash_price_a_manual, t.cash_price_a_manual),
+                t.cash_price_b_manual = IF(t.cash_price_b IS NULL, p.cash_price_b_manual, t.cash_price_b_manual),
+                t.cash_price_c_manual = IF(t.cash_price_c IS NULL, p.cash_price_c_manual, t.cash_price_c_manual),
                 t.cash_price_a = COALESCE(t.cash_price_a, p.cash_price_a),
                 t.cash_price_b = COALESCE(t.cash_price_b, p.cash_price_b),
                 t.cash_price_c = COALESCE(t.cash_price_c, p.cash_price_c),
+                t.purchase_price = COALESCE(t.purchase_price, p.purchase_price),
                 t.cost_price   = COALESCE(t.cost_price,   p.cost_price)
             WHERE t.price_month = ?
-            AND (t.cash_price_a IS NULL OR t.cash_price_b IS NULL OR t.cash_price_c IS NULL OR t.cost_price IS NULL)
+            AND (t.cash_price_a IS NULL OR t.cash_price_b IS NULL OR t.cash_price_c IS NULL OR t.cost_price IS NULL OR t.purchase_price IS NULL)
         ");
         $stmt->execute([$prev_month, $target_month]);
         $updated = $stmt->rowCount();
