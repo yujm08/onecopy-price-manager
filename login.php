@@ -3,9 +3,17 @@ require_once 'config/db.php';
 require_once 'includes/auth.php';
 require_once __DIR__ . '/config/config.php';
 
-if (is_logged_in()) {
-    header('Location: ' . BASE_URL . '/admin/price_manage.php');
+function redirect_by_role() {
+    if (is_admin()) {
+        header('Location: ' . BASE_URL . '/admin/price_manage.php');
+    } else {
+        header('Location: ' . BASE_URL . '/client/catalog.php');
+    }
     exit;
+}
+
+if (is_logged_in()) {
+    redirect_by_role();
 }
 
 $error_message = '';
@@ -29,8 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $result = login($company_name, $password_input);
         if ($result['success']) {
-            header('Location: ' . BASE_URL . '/admin/price_manage.php');
-            exit;
+            redirect_by_role();
         } else {
             record_login_fail($pdo, $ip); // 실패 기록
             $error_message = $result['message'];
