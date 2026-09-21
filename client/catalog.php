@@ -178,6 +178,66 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
     line-height: 1.5;
 }
 .desc-cell .cell-display { display: block; }
+
+/* 장바구니 담기 버튼 */
+.cart-cell { text-align: center; }
+.btn-cart-add { padding:6px 14px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; white-space:nowrap; margin: 0 auto;}
+.btn-cart-add:hover { background:#229954; }
+
+.price-table td.cart-cell {
+    text-align: center !important;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+/* 담기 알림 토스트 */
+.cart-toast {
+    position: fixed; bottom: 90px; right: 28px;
+    background: #2c3e50; color: white;
+    padding: 12px 20px; border-radius: 6px;
+    font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 1002; opacity: 0; transform: translateY(10px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+}
+.cart-toast.show { opacity: 1; transform: translateY(0); }
+.cart-toast.error { background: #c0392b; }
+
+/* 수량 선택 모달 */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1003; justify-content:center; align-items:center; }
+.modal-overlay.active { display:flex; }
+.modal { background:white; border-radius:10px; padding:32px 36px; width:100%; max-width:400px; box-shadow:0 8px 32px rgba(0,0,0,0.18); position:relative; }
+.modal h2 { font-size:18px; margin-bottom:8px; color:#2c3e50; }
+.modal-close { position:absolute; top:16px; right:20px; background:none; border:none; font-size:22px; cursor:pointer; color:#888; }
+.modal-close:hover { color:#333; }
+.modal .form-group { margin-bottom:16px; }
+.modal .form-group label { display:block; margin-bottom:6px; font-weight:500; font-size:14px; color:#444; }
+.modal .form-group input { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:4px; font-size:14px; box-sizing:border-box; }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:8px; }
+.btn-modal-save { padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:500; }
+.btn-modal-save:hover { background:#229954; }
+.btn-modal-cancel { padding:10px 20px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; }
+.btn-modal-cancel:hover { background:#7f8c8d; }
+
+/* 하단 좌측 장바구니 요약바 */
+.cart-float-bar {
+    position: fixed; left: 24px; bottom: 24px;
+    display: flex; align-items: center; gap: 12px;
+    background: #2c3e50; color: white;
+    padding: 12px 18px; border-radius: 30px;
+    text-decoration: none; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    z-index: 1001; font-size: 14px;
+}
+.cart-float-bar:hover { background: #1f2c38; }
+.cart-float-icon { position: relative; font-size: 20px; }
+.cart-float-badge {
+    position: absolute; top: -8px; right: -10px;
+    background: #e74c3c; color: white;
+    border-radius: 50%; font-size: 11px;
+    min-width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px; font-weight: 700;
+}
 </style>
 
 <div class="container">
@@ -265,6 +325,31 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
 
 </div>
 
+<div class="cart-toast" id="cart-toast"></div>
+
+<!-- 장바구니 수량 선택 모달 -->
+<div class="modal-overlay" id="cart-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeCartModal()">✕</button>
+        <h2>장바구니 담기</h2>
+        <p id="cart-modal-product-name" style="margin-bottom:16px;color:#555;"></p>
+        <div class="form-group">
+            <label>수량</label>
+            <input type="number" id="cart-modal-qty" value="1" min="1" step="1">
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-modal-cancel" onclick="closeCartModal()">취소</button>
+            <button type="button" class="btn-modal-save" onclick="confirmAddToCart()">담기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 하단 좌측 장바구니 요약바 -->
+<a href="<?php echo BASE_URL; ?>/client/cart.php" class="cart-float-bar" id="cart-float-bar" style="display:none;">
+    <span class="cart-float-icon">🛒<span class="cart-float-badge" id="cart-float-badge">0</span></span>
+    <span>합계: <strong id="cart-float-total">0원</strong></span>
+</a>
+
 <button id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
     title="맨 위로"
     style="
@@ -288,6 +373,74 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
 
 <script>
 /* ── 카테고리 필터 ── */
+
+const CSRF_TOKEN = '<?php echo generate_csrf_token(); ?>';
+
+function showCartToast(message, isError = false) {
+    const toast = document.getElementById('cart-toast');
+    toast.textContent = message;
+    toast.classList.toggle('error', isError);
+    toast.classList.add('show');
+    clearTimeout(showCartToast._timer);
+    showCartToast._timer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function openCartModal(productId, productName) {
+    document.getElementById('cart-modal').dataset.productId = productId;
+    document.getElementById('cart-modal-product-name').textContent = productName;
+    document.getElementById('cart-modal-qty').value = 1;
+    document.getElementById('cart-modal').classList.add('active');
+}
+function closeCartModal() {
+    document.getElementById('cart-modal').classList.remove('active');
+}
+document.getElementById('cart-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeCartModal();
+});
+
+function confirmAddToCart() {
+    const modal      = document.getElementById('cart-modal');
+    const productId  = modal.dataset.productId;
+    const qtyInput   = document.getElementById('cart-modal-qty');
+    const quantity   = parseInt(qtyInput.value, 10);
+    if (!quantity || quantity < 1) {
+        showCartToast('수량을 확인해주세요.', true);
+        return;
+    }
+
+    fetch('<?php echo BASE_URL; ?>/api/cart/add.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `product_id=${productId}&quantity=${quantity}&csrf_token=${encodeURIComponent(CSRF_TOKEN)}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        showCartToast(data.message, !data.success);
+        if (data.success) {
+            closeCartModal();
+            refreshCartSummary();
+        }
+    })
+    .catch(() => showCartToast('오류가 발생했습니다.', true));
+}
+
+function refreshCartSummary() {
+    fetch('<?php echo BASE_URL; ?>/api/cart/list.php')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            const bar = document.getElementById('cart-float-bar');
+            const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0);
+            if (totalQty === 0) { bar.style.display = 'none'; return; }
+            document.getElementById('cart-float-badge').textContent = totalQty;
+            document.getElementById('cart-float-total').textContent = Math.round(data.total).toLocaleString() + '원';
+            bar.style.display = 'flex';
+        })
+        .catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', refreshCartSummary);
+
 let activeCatFilters = <?php echo json_encode($cat_filters); ?>;
 
 function toggleCatFilter(catId) {

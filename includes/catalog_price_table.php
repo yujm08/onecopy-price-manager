@@ -79,6 +79,7 @@
                     <th>현금가 (부가세별도)</th>
                     <th>카드가</th>
                     <?php if ($has_description): ?><th>설명</th><?php endif; ?>
+                    <?php if (!$is_previewing): ?><th>담기</th><?php endif; ?>
                 </tr>
                 <?php endif; ?>
             </thead>
@@ -217,6 +218,11 @@
                     <textarea name="products[<?php echo $pid; ?>][description]"
                             style="display:none"
                             rows="2"><?php echo h($product['description'] ?? ''); ?></textarea>
+                </td>
+                <?php endif; ?>
+                <?php if (!$effective_is_admin && !$is_previewing): ?>
+                <td class="cart-cell">
+                    <button type="button" class="btn-cart-add" onclick="openCartModal(<?php echo $pid; ?>, <?php echo h(json_encode($product['product_name'])); ?>)">담기</button>
                 </td>
                 <?php endif; ?>
                 <?php if (is_superadmin() && !$is_previewing): ?>
