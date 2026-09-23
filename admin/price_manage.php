@@ -41,11 +41,7 @@ if ($show_company_results) {
 if ($effective_is_admin) {
     $selected_month = $_GET['month'] ?? date('Y-m');
 } else {
-    $row = $pdo->query("
-        SELECT DATE_FORMAT(MAX(price_month),'%Y-%m') FROM prices
-        WHERE cash_price_a IS NOT NULL OR cash_price_b IS NOT NULL OR cash_price_c IS NOT NULL
-    ")->fetchColumn();
-    $selected_month = $row ?: date('Y-m');
+    $selected_month = date('Y-m');
 }
 $selected_month_full = $selected_month . '-01';
 
@@ -196,8 +192,15 @@ $user_grade      = strtolower($_SESSION['grade'] ?? '');
 $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $user_grade;
 ?>
 
+<?php
+/* ── 쿠폰 적용가 표시용: 미리보기 중이면 그 업체 기준, 아니면(관리자 수정모드) 빈 값 ── */
+$coupons_by_product = $is_previewing
+    ? get_active_coupons_for_company($pdo, $preview_company_id)
+    : [];
+?>
+
 <style>
-.container { max-width: 1400px; width: 100%; margin: 0 auto; padding: 0 16px; box-sizing: border-box; }
+.container { max-width: min(1800px, 96vw); width: 100%; margin: 0 auto; padding: 0 16px; box-sizing: border-box; }
 
 /* 월 네비 */
 .month-nav { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
@@ -292,7 +295,7 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
 
 /* 자물쇠 (수동/자동 토글) */
 .edit-mode td.editable .price-input-wrap { display:flex !important; align-items:center; gap:5px; }
-.price-input-wrap .price-input { flex:1; }
+.price-input-wrap .price-input { flex: 0 0 auto; }
 .price-input-wrap .price-input[readonly] { background:#eef1f4; color:#8a929c; cursor:not-allowed; border-color:#c7ccd3; }
 .price-input-wrap .price-input:not([readonly]) { background:#fffaf3; border-color:#e67e22; }
 .btn-lock {
@@ -351,6 +354,14 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
 .btn-form-save   { padding:8px 20px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; }
 .btn-form-cancel { padding:8px 16px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; }
 
+/* 쿠폰 적용가 */
+.price-original { color:#999; text-decoration:line-through; font-size:12px; }
+.price-coupon { color:#2980b9; font-weight:700; }
+
+/* 제품명 칸 — 편집 중 잘려 보이지 않도록 최소 너비 확보 */
+.product-name-cell { min-width: 200px; }
+.product-name-cell input[type="text"] { min-width: 180px; }
+
 /* 테이블 */
 .price-table-wrap {
     position: relative;
@@ -363,7 +374,7 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
     -webkit-user-select: none;
 }
 .price-table-scroll { overflow:visible; }
-.price-table { width:100%; border-collapse: separate; border-spacing:0; }
+.price-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing:0; }
 .price-table thead { background:#34495e; color:white; }
 .price-table thead th { position:sticky; top:0; z-index:10; background:#34495e; }
 .price-table thead tr:nth-child(2) th { top:43px; }
@@ -442,6 +453,23 @@ $effective_grade = $is_previewing ? strtolower($preview_company['grade']) : $use
 .price-table select { width:100%; padding:5px 8px; border:1px solid #5A6778; border-radius:3px; font-size:13px; box-sizing:border-box; }
 .price-table input[type="number"] { text-align:right; }
 .delete-mode tr.selected-for-delete td { background:#fdecea; }
+
+/* ── 수정 모드: 숫자 입력칸은 자릿수 기준 고정 폭 ── */
+.price-table input[type="number"] {
+    width: calc(10ch + 18px);          /* 숫자 10자리 + 좌우 padding 16px + border 2px */
+    min-width: 0;
+    font-variant-numeric: tabular-nums; /* 숫자 폭을 균일하게 → ch 계산이 정확해짐 */
+    -moz-appearance: textfield;         /* 위아래 화살표 제거 (폭 약 15px 절약) */
+    appearance: textfield;
+}
+.price-table input[type="number"]::-webkit-outer-spin-button,
+.price-table input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* (선택) 수정 모드일 때만 셀 패딩을 조금 줄이기 */
+.price-table.edit-mode td { padding-left: 10px; padding-right: 10px; }
 </style>
 
 <div class="container">
@@ -804,20 +832,29 @@ function recalcRow(row) {
     const baseGrade = formula.base_grade.toLowerCase();
     const baseInput = row.querySelector(`.price-input[data-grade="${baseGrade}"]`);
     if (!baseInput) return;
-    const baseVal = parseFloat(baseInput.value);
-    if (isNaN(baseVal)) return;
+
+    const raw = baseInput.value.trim();
+    const baseVal = parseFloat(raw);
+    // 기준 등급 가격이 비어있거나 0 이하면 "가격 없음" 상태로 간주 — 다른 등급도 전부 비움
+    const hasValidBase = raw !== '' && !isNaN(baseVal) && baseVal > 0;
 
     ['a', 'b', 'c'].forEach(grade => {
         if (grade === baseGrade) return;
         const input = row.querySelector(`.price-input[data-grade="${grade}"]`);
         if (!input || !input.readOnly) return; // 자물쇠로 고정된(수동) 셀은 건드리지 않음
+
+        if (!hasValidBase) {
+            input.value = ''; // 기준 등급 가격이 없으면 다른 등급 가격도 비움 (0/음수 방지)
+            return;
+        }
+
         const rule = formula.rules[grade.toUpperCase()];
         if (!rule) return;
 
         let newVal;
         if (rule.calc_type === 'percent')         newVal = Math.round(baseVal * (1 + rule.calc_value / 100));
         else if (rule.calc_type === 'amount_add')      newVal = Math.round(baseVal + rule.calc_value);
-        else if (rule.calc_type === 'amount_subtract') newVal = Math.round(baseVal - rule.calc_value);
+        else if (rule.calc_type === 'amount_subtract') newVal = Math.max(0, Math.round(baseVal - rule.calc_value));
         else return;
 
         input.value = newVal;

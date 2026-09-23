@@ -1,6 +1,5 @@
 <?php
-// includes/footer.php
-// 페이지 공통 푸터
+
 ?>
     <footer class="main-footer">
         <p>본 시스템의 모든 데이터는 기밀 정보입니다. 무단 유출 시 법적 책임이 발생할 수 있습니다.</p>

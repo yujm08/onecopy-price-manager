@@ -21,6 +21,8 @@
  *   $tags_by_product      - [product_id => [tag, ...]]
  *   $brands_by_category   - [category_id => [브랜드 배열]]
  *   $formulas_by_category - [category_id => ['base_grade'=>.., 'rules'=>[...]]] (수정모드 자물쇠 표시용)
+ *   $coupons_by_product   - get_active_coupons_for_company()의 반환값. [product_id => [쿠폰 배열]]
+ *                            고객용(비관리자) 렌더링에서 쿠폰 적용가 표시에 사용. 없으면 빈 배열로 취급.
  *   $selected_month_full  - 'YYYY-MM-01' 형식
  *   $selected_category_id - 현재 선택된 카테고리 ID
  *   $current_user         - get_current_login_user() 결과 (워터마크 텍스트용)
@@ -128,10 +130,11 @@
                 <?php endif; ?>
 
                 <!-- 제품명 -->
-                <td class="editable">
+                <td class="editable product-name-cell">
                     <span class="cell-display"><?php echo h($product['product_name']); ?></span>
                     <input type="text" name="products[<?php echo $pid; ?>][product_name]"
                             value="<?php echo h($product['product_name']); ?>"
+                            title="[<?php echo h($product['product_number']); ?>] <?php echo h($product['product_name']); ?>"
                             style="display:none" required>
                 </td>
 
@@ -207,8 +210,28 @@
                     </td>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <td class="num"><?php echo $my_cash !== null ? number_format($my_cash) . '원' : '-'; ?></td>
-                    <td class="num"><?php echo $my_card !== null ? number_format($my_card) . '원' : '-'; ?></td>
+                    <?php
+                        $__product_coupons = $coupons_by_product[$pid] ?? [];
+                        $__best_coupon = pick_best_coupon($__product_coupons, $my_cash);
+                        $__coupon_cash = $__best_coupon ? $my_cash - $__best_coupon['_effective_amount'] : null;
+                        $__coupon_card = $__coupon_cash !== null ? calc_card_price($__coupon_cash) : null;
+                    ?>
+                    <td class="num">
+                        <?php if ($__best_coupon): ?>
+                            <span class="price-original"><?php echo number_format($my_cash); ?>원</span><br>
+                            <span class="price-coupon">쿠폰 적용가 <?php echo number_format($__coupon_cash); ?>원</span>
+                        <?php else: ?>
+                            <?php echo $my_cash !== null ? number_format($my_cash) . '원' : '-'; ?>
+                        <?php endif; ?>
+                    </td>
+                    <td class="num">
+                        <?php if ($__best_coupon): ?>
+                            <span class="price-original"><?php echo number_format($my_card); ?>원</span><br>
+                            <span class="price-coupon">쿠폰 적용가 <?php echo number_format($__coupon_card); ?>원</span>
+                        <?php else: ?>
+                            <?php echo $my_card !== null ? number_format($my_card) . '원' : '-'; ?>
+                        <?php endif; ?>
+                    </td>
                 <?php endif; ?>
 
                 <!-- 설명 -->
@@ -222,7 +245,11 @@
                 <?php endif; ?>
                 <?php if (!$effective_is_admin && !$is_previewing): ?>
                 <td class="cart-cell">
+                    <?php if ($my_cash !== null): ?>
                     <button type="button" class="btn-cart-add" onclick="openCartModal(<?php echo $pid; ?>, <?php echo h(json_encode($product['product_name'])); ?>)">담기</button>
+                    <?php else: ?>
+                    <button type="button" class="btn-cart-add" disabled title="이번 달 가격이 없어 담을 수 없습니다">담기</button>
+                    <?php endif; ?>
                 </td>
                 <?php endif; ?>
                 <?php if (is_superadmin() && !$is_previewing): ?>

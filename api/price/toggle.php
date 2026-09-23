@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
 // 관리자 권한 확인
 require_superadmin();

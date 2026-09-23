@@ -1,7 +1,7 @@
 <?php
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../config/config.php';
 
 require_superadmin();
 
@@ -110,6 +110,13 @@ try {
         $pb   = isset($price_data['cash_price_b']) && $price_data['cash_price_b'] !== '' ? (int)$price_data['cash_price_b'] : null;
         $pc   = isset($price_data['cash_price_c']) && $price_data['cash_price_c'] !== '' ? (int)$price_data['cash_price_c'] : null;
 
+        // 0원은 실제 판매가일 수 없으므로 "가격 없음"(NULL)과 동일하게 취급.
+        // 이렇게 정규화해두면 아래 "전부 NULL이면 행 삭제" 체크와 수식 재계산 로직이
+        // 기준등급에 0을 입력한 경우에도 일관되게 동작한다.
+        if ($pa === 0) $pa = null;
+        if ($pb === 0) $pb = null;
+        if ($pc === 0) $pc = null;
+
         $manual_a = !empty($price_data['cash_price_a_manual']) ? 1 : 0;
         $manual_b = !empty($price_data['cash_price_b_manual']) ? 1 : 0;
         $manual_c = !empty($price_data['cash_price_c_manual']) ? 1 : 0;
@@ -126,16 +133,31 @@ try {
             $manual = ['A' => $manual_a, 'B' => $manual_b, 'C' => $manual_c];
             $base_val = $vals[$base_grade];
 
-            if ($base_val !== null) {
+            if ($base_val !== null && $base_val > 0) {
                 foreach (['A', 'B', 'C'] as $g) {
                     if ($g === $base_grade || $manual[$g]) continue;
                     $rule = $formula_rules[$g] ?? null;
                     if ($rule) {
-                        $vals[$g] = calc_formula_price($base_val, $rule['calc_type'], $rule['calc_value']);
+                        $computed = calc_formula_price($base_val, $rule['calc_type'], $rule['calc_value']);
+                        // 계산 결과가 0 이하면 이것도 "가격 없음"으로 (음수/0 저장 방지)
+                        $vals[$g] = ($computed !== null && $computed > 0) ? $computed : null;
                     }
+                }
+            } else {
+                // 기준등급 가격이 없으면(0 포함) 자동계산 등급들도 함께 비움.
+                // 수동으로 고정(자물쇠)해둔 등급은 건드리지 않음.
+                foreach (['A', 'B', 'C'] as $g) {
+                    if ($g === $base_grade || $manual[$g]) continue;
+                    $vals[$g] = null;
                 }
             }
             $pa = $vals['A']; $pb = $vals['B']; $pc = $vals['C'];
+
+            // 수식 재계산 결과 세 등급이 전부 비게 되면(예: 기준등급 0 + 나머지 전부 자동) 행 자체를 삭제
+            if ($pa === null && $pb === null && $pc === null) {
+                $pdo->prepare("DELETE FROM prices WHERE product_id=? AND price_month=?")->execute([$pid, $price_month]);
+                continue;
+            }
         }
 
         $exists = $pdo->prepare("SELECT id FROM prices WHERE product_id=? AND price_month=?");

@@ -6,6 +6,9 @@ require_once __DIR__ . '/../config/config.php';
 require_login();
 
 $current_user = get_current_login_user();
+
+// 로고/타이틀 클릭 시 이동할 홈: 관리자는 가격관리, 일반 업체는 상품조회
+$home_url = is_admin() ? BASE_URL . '/admin/price_manage.php' : BASE_URL . '/client/catalog.php';
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -20,7 +23,7 @@ $current_user = get_current_login_user();
 
 <div class="side-drawer" id="side-drawer">
     <div class="drawer-header">
-        <h1><a href="<?php echo BASE_URL; ?>/admin/price_manage.php" style="text-decoration:none;color:inherit;">가격관리 시스템</a></h1>
+        <h1><a href="<?php echo $home_url; ?>" style="text-decoration:none;color:inherit;">가격관리 시스템</a></h1>
     </div>
     <?php if (is_admin()): ?>
     <nav class="drawer-nav">
@@ -31,6 +34,10 @@ $current_user = get_current_login_user();
         <a href="<?php echo BASE_URL; ?>/admin/company_manage.php"
             class="<?php echo basename($_SERVER['PHP_SELF']) === 'company_manage.php' ? 'active' : ''; ?>">
             업체 관리
+        </a>
+        <a href="<?php echo BASE_URL; ?>/admin/coupon_manage.php"
+            class="<?php echo basename($_SERVER['PHP_SELF']) === 'coupon_manage.php' ? 'active' : ''; ?>">
+            쿠폰
         </a>
     </nav>
     <?php endif; ?>
@@ -53,7 +60,7 @@ $current_user = get_current_login_user();
     <button class="btn-hamburger" onclick="toggleDrawer()">☰</button>
 
     <div class="header-left">
-        <h1><a href="<?php echo BASE_URL; ?>/admin/price_manage.php" style="text-decoration:none;color:inherit;">가격관리 시스템</a></h1>
+        <h1><a href="<?php echo $home_url; ?>" style="text-decoration:none;color:inherit;">가격관리 시스템</a></h1>
     </div>
 
     <?php if (is_admin()): ?>
@@ -66,6 +73,10 @@ $current_user = get_current_login_user();
             <a href="<?php echo BASE_URL; ?>/admin/company_manage.php"
                 class="<?php echo basename($_SERVER['PHP_SELF']) === 'company_manage.php' ? 'active' : ''; ?>">
                 업체 관리
+            </a>
+            <a href="<?php echo BASE_URL; ?>/admin/coupon_manage.php"
+                class="<?php echo basename($_SERVER['PHP_SELF']) === 'coupon_manage.php' ? 'active' : ''; ?>">
+                쿠폰
             </a>
         </nav>
     </div>

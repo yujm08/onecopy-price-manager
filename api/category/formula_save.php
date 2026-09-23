@@ -1,8 +1,8 @@
 <?php
 
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../config/config.php';
 
 require_superadmin();
 
@@ -82,13 +82,24 @@ try {
     $products = $prod_stmt->fetchAll();
 
     foreach ($products as $prod) {
-        if ($prod['base_price'] === null) continue; // 기준등급 가격이 없으면 계산 불가
+        // 기준등급 가격이 없거나(NULL) 0 이하면 "가격 없음" 상태로 간주 —
+        // 다른 등급도 그대로 두지 않고(예전엔 continue로 건너뛰어 옛 값이 남아있었음)
+        // 명시적으로 NULL로 비워서 화면/장바구니에서 정확히 "가격 없음"으로 취급되게 함.
+        $base_price = $prod['base_price'];
+        $has_valid_base = ($base_price !== null && (float)$base_price > 0);
 
         foreach ($other_grades as $grade) {
-            $rule = $rules_by_grade[$grade];
-            $new_price  = calc_formula_price($prod['base_price'], $rule['calc_type'], $rule['calc_value']);
             $target_col = 'cash_price_' . strtolower($grade);
             $manual_col = $target_col . '_manual';
+
+            if ($has_valid_base) {
+                $rule = $rules_by_grade[$grade];
+                $new_price = calc_formula_price($base_price, $rule['calc_type'], $rule['calc_value']);
+                // 0원은 실제 판매가일 수 없으므로 "가격 없음"(NULL)으로 통일
+                if ($new_price !== null && $new_price <= 0) $new_price = null;
+            } else {
+                $new_price = null;
+            }
 
             $u = $pdo->prepare("
                 UPDATE prices SET $target_col = ?, $manual_col = 0

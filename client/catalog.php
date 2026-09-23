@@ -11,12 +11,7 @@ if (is_admin()) {
 }
 
 /* ── 월 (고객은 항상 가격이 등록된 최신 월을 봄, 선택 불가) ── */
-$row = $pdo->query("
-    SELECT DATE_FORMAT(MAX(price_month),'%Y-%m') FROM prices
-    WHERE cash_price_a IS NOT NULL OR cash_price_b IS NOT NULL OR cash_price_c IS NOT NULL
-")->fetchColumn();
-$selected_month      = $row ?: date('Y-m');
-$selected_month_full = $selected_month . '-01';
+$selected_month_full = get_latest_priced_month($pdo);
 
 /* ── 검색 파라미터 ── */
 $search_query   = trim($_GET['q'] ?? '');
@@ -106,6 +101,10 @@ foreach ($products as $p) {
 $brands_by_category   = [];
 $formulas_by_category = [];
 
+/* ── 이 업체가 지금 쓸 수 있는 쿠폰 (상품별 그룹핑) — 가격표 쿠폰가 표시 + 쿠폰함에 공용 사용 ── */
+$my_company_id      = (int)$_SESSION['user_id'];
+$coupons_by_product = get_active_coupons_for_company($pdo, $my_company_id);
+
 /* ── 이 페이지는 항상 "고객용 읽기전용" 모드로 테이블을 그림 ── */
 $effective_is_admin = false;
 $is_previewing       = false;
@@ -179,16 +178,39 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
 }
 .desc-cell .cell-display { display: block; }
 
+/* 쿠폰 적용가 표시 */
+.price-original { color:#999; text-decoration:line-through; font-size:12px; }
+.price-coupon { color:#2980b9; font-weight:700; }
+
+/* 쿠폰함 */
+.btn-coupon-box { padding:8px 16px; background:#2980b9; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:500; white-space:nowrap; }
+.btn-coupon-box:hover { background:#2471a3; }
+.coupon-box-panel {
+    position: fixed; top: 0; right: 0; height: 100%; width: 340px; max-width: 90vw;
+    background: white; box-shadow: -4px 0 16px rgba(0,0,0,0.15);
+    z-index: 1005; transform: translateX(100%); transition: transform 0.25s ease;
+    display: flex; flex-direction: column;
+}
+.coupon-box-panel.open { transform: translateX(0); }
+.coupon-box-header { display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid #eee; }
+.coupon-box-header h3 { font-size:15px; color:#2c3e50; }
+.coupon-box-close { background:none; border:none; font-size:20px; cursor:pointer; color:#888; }
+.coupon-box-note { padding:10px 18px; font-size:12px; color:#888; background:#f8f9fa; border-bottom:1px solid #eee; }
+.coupon-box-list { flex:1; overflow-y:auto; padding:12px 18px; display:flex; flex-direction:column; gap:12px; }
+.coupon-box-card { background:#f8f9fa; border-radius:8px; padding:14px 16px; }
+.coupon-box-card .coupon-name { font-weight:700; color:#2c3e50; font-size:14px; }
+.coupon-box-card .coupon-discount { color:#2980b9; font-weight:700; font-size:16px; margin-left:8px; }
+.coupon-box-card .coupon-target { display:block; font-size:12px; color:#888; margin-top:2px; }
+.coupon-box-card .coupon-dates { font-size:12px; color:#999; margin-top:6px; }
+.coupon-box-empty { padding:40px 20px; text-align:center; color:#999; font-size:13px; }
+.coupon-box-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:1004; }
+.coupon-box-overlay.open { display:block; }
+
 /* 장바구니 담기 버튼 */
 .cart-cell { text-align: center; }
-.btn-cart-add { padding:6px 14px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; white-space:nowrap; margin: 0 auto;}
+.btn-cart-add { padding:6px 14px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; white-space:nowrap; }
 .btn-cart-add:hover { background:#229954; }
-
-.price-table td.cart-cell {
-    text-align: center !important;
-    padding-left: 8px;
-    padding-right: 8px;
-}
+.btn-cart-add:disabled { background:#ccc; color:#888; cursor:not-allowed; }
 
 /* 담기 알림 토스트 */
 .cart-toast {
@@ -319,13 +341,49 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
         <?php else: ?>
         <div style="font-size:13px;color:#888;">전체 카테고리 검색 결과</div>
         <?php endif; ?>
+        <button type="button" class="btn-coupon-box" onclick="openCouponBox()">쿠폰함</button>
     </div>
 
     <?php include __DIR__ . '/../includes/catalog_price_table.php'; ?>
 
 </div>
 
-<div class="cart-toast" id="cart-toast"></div>
+<?php
+    // 쿠폰함에 표시할 평탄화된 목록 (상품별 그룹 -> 하나의 리스트, 만료 임박한 순)
+    $all_my_coupons = [];
+    foreach ($coupons_by_product as $product_id => $list) {
+        foreach ($list as $c) $all_my_coupons[] = $c;
+    }
+    usort($all_my_coupons, fn($a, $b) => strtotime($a['valid_to']) <=> strtotime($b['valid_to']));
+?>
+<div class="coupon-box-overlay" id="coupon-box-overlay" onclick="closeCouponBox()"></div>
+<div class="coupon-box-panel" id="coupon-box-panel">
+    <div class="coupon-box-header">
+        <h3>쿠폰함 (<?php echo count($all_my_coupons); ?>장)</h3>
+        <button type="button" class="coupon-box-close" onclick="closeCouponBox()">✕</button>
+    </div>
+    <div class="coupon-box-note">※ 제품 1대당 쿠폰은 1개만 적용되며, 중복 사용은 불가합니다.</div>
+    <div class="coupon-box-list">
+        <?php if (empty($all_my_coupons)): ?>
+        <div class="coupon-box-empty">사용 가능한 쿠폰이 없습니다.</div>
+        <?php else: ?>
+            <?php foreach ($all_my_coupons as $c): ?>
+            <div class="coupon-box-card">
+                <div>
+                    <span class="coupon-name"><?php echo $c['is_custom_name'] ? h($c['coupon_name']) : h($c['product_name']); ?></span>
+                    <span class="coupon-discount"><?php echo $c['discount_type'] === 'percent' ? (int)$c['discount_value'] . '%' : number_format($c['discount_value']) . '원'; ?> 할인</span>
+                    <?php if ($c['is_custom_name']): ?>
+                    <span class="coupon-target">대상 제품: <?php echo h($c['product_name']); ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="coupon-dates">
+                    잔여 <?php echo $c['remaining_qty']; ?>개 · 사용 기한: <?php echo h($c['valid_from']); ?> ~ <?php echo h($c['valid_to']); ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+</div>
 
 <!-- 장바구니 수량 선택 모달 -->
 <div class="modal-overlay" id="cart-modal">
@@ -350,6 +408,8 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
     <span>합계: <strong id="cart-float-total">0원</strong></span>
 </a>
 
+<div class="cart-toast" id="cart-toast"></div>
+
 <button id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
     title="맨 위로"
     style="
@@ -372,8 +432,6 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
     ">↑</button>
 
 <script>
-/* ── 카테고리 필터 ── */
-
 const CSRF_TOKEN = '<?php echo generate_csrf_token(); ?>';
 
 function showCartToast(message, isError = false) {
@@ -426,21 +484,23 @@ function confirmAddToCart() {
 
 function refreshCartSummary() {
     fetch('<?php echo BASE_URL; ?>/api/cart/list.php')
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
         .then(data => {
-            if (!data.success) return;
+            if (!data.success) { console.error('cart list error:', data.message); return; }
             const bar = document.getElementById('cart-float-bar');
             const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0);
             if (totalQty === 0) { bar.style.display = 'none'; return; }
             document.getElementById('cart-float-badge').textContent = totalQty;
-            document.getElementById('cart-float-total').textContent = Math.round(data.total).toLocaleString() + '원';
+            document.getElementById('cart-float-total').textContent = Math.round(data.total_net ?? data.total).toLocaleString() + '원';
             bar.style.display = 'flex';
         })
-        .catch(() => {});
+        .catch(err => console.error('cart summary fetch failed:', err));
 }
 
-document.addEventListener('DOMContentLoaded', refreshCartSummary);
-
+/* ── 카테고리 필터 ── */
 let activeCatFilters = <?php echo json_encode($cat_filters); ?>;
 
 function toggleCatFilter(catId) {
@@ -457,12 +517,24 @@ function removeCatFilter(catId) {
     document.getElementById('search-form').submit();
 }
 
+/* 쿠폰함 */
+function openCouponBox() {
+    document.getElementById('coupon-box-panel').classList.add('open');
+    document.getElementById('coupon-box-overlay').classList.add('open');
+}
+function closeCouponBox() {
+    document.getElementById('coupon-box-panel').classList.remove('open');
+    document.getElementById('coupon-box-overlay').classList.remove('open');
+}
+
 /* Scroll to Top 버튼 */
 const scrollBtn = document.getElementById('scroll-top-btn');
 window.addEventListener('scroll', () => {
     const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
     scrollBtn.style.display = scrollTop > 300 ? 'block' : 'none';
 });
+
+document.addEventListener('DOMContentLoaded', refreshCartSummary);
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
