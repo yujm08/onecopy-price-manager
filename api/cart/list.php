@@ -19,9 +19,10 @@ if (!in_array($grade, ['A', 'B', 'C'], true)) {
 // $grade는 로그인 시 DB(companies.grade ENUM)에서 세팅된 값만 들어오므로
 // A/B/C 화이트리스트 체크 후에는 컬럼명 직접 조립에 사용해도 안전함
 $price_col  = 'cash_price_' . strtolower($grade);
-$this_month = date('Y-m-01');
+$this_month = get_latest_priced_month($pdo);   // 카탈로그와 기준 월 통일
 
 try {
+    // 구분 순 → 같은 구분 안에서는 최근 담은 순 (PC 테이블 그룹 행 / 모바일 구분별 묶음 공용)
     $stmt = $pdo->prepare("
         SELECT
             ci.id AS cart_item_id,
@@ -29,12 +30,15 @@ try {
             ci.quantity,
             p.product_name,
             p.product_number,
+            p.category_id,
+            c.category_name,
             pr.$price_col AS unit_price
         FROM cart_items ci
-        JOIN products p ON p.id = ci.product_id
-        LEFT JOIN prices pr ON pr.product_id = ci.product_id AND pr.price_month = ?
+        JOIN products p        ON p.id = ci.product_id
+        LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN prices pr    ON pr.product_id = ci.product_id AND pr.price_month = ?
         WHERE ci.company_id = ?
-        ORDER BY ci.id DESC
+        ORDER BY c.id, ci.id DESC
     ");
     $stmt->execute([$this_month, $company_id]);
     $items = $stmt->fetchAll();
@@ -45,8 +49,9 @@ try {
     $total_discount = 0;
 
     foreach ($items as &$item) {
-        $item['unit_price'] = $item['unit_price'] !== null ? (float)$item['unit_price'] : null;
-        $item['line_total'] = $item['unit_price'] !== null
+        $item['category_id'] = $item['category_id'] !== null ? (int)$item['category_id'] : null;
+        $item['unit_price']  = $item['unit_price'] !== null ? (float)$item['unit_price'] : null;
+        $item['line_total']  = $item['unit_price'] !== null
             ? round($item['unit_price'] * $item['quantity'], 2)
             : null;
 

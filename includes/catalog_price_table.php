@@ -81,7 +81,7 @@
                     <th>현금가 (부가세별도)</th>
                     <th>카드가</th>
                     <?php if ($has_description): ?><th>설명</th><?php endif; ?>
-                    <?php if (!$is_previewing): ?><th>담기</th><?php endif; ?>
+                    <?php if (!$is_previewing): ?><th>장바구니</th><?php endif; ?>
                 </tr>
                 <?php endif; ?>
             </thead>

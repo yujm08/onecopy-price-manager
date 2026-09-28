@@ -238,8 +238,24 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
 .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:8px; }
 .btn-modal-save { padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:500; }
 .btn-modal-save:hover { background:#229954; }
+.btn-modal-save:disabled { background:#9fd3b3; cursor:wait; }
 .btn-modal-cancel { padding:10px 20px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; }
 .btn-modal-cancel:hover { background:#7f8c8d; }
+
+/* 수량 모달 −/+ 스테퍼 (PC/모바일 공용) */
+.qty-stepper { display:flex; align-items:stretch; border:1px solid #ddd; border-radius:6px; overflow:hidden; }
+.qty-stepper button {
+    width:44px; flex-shrink:0; border:none; background:#f4f6f8;
+    font-size:20px; font-weight:700; color:#2c3e50; cursor:pointer;
+}
+.qty-stepper button:hover { background:#e3e7eb; }
+.modal .form-group .qty-stepper input {
+    flex:1; width:auto; min-width:0; border:none; border-radius:0;
+    border-left:1px solid #ddd; border-right:1px solid #ddd;
+    text-align:center; font-size:16px; padding:10px; -moz-appearance:textfield;
+}
+.qty-stepper input::-webkit-outer-spin-button,
+.qty-stepper input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 
 /* 하단 좌측 장바구니 요약바 */
 .cart-float-bar {
@@ -259,6 +275,53 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
     min-width: 18px; height: 18px;
     display: flex; align-items: center; justify-content: center;
     padding: 0 4px; font-weight: 700;
+}
+.cart-float-basis { font-size: 11px; opacity: 0.7; margin-left: 4px; }
+
+/* ───────── PC / 모바일 전환 (768px) ───────── */
+.catalog-mobile { display: none; }
+
+@media (max-width: 768px) {
+    .catalog-desktop { display: none; }
+    .catalog-mobile  { display: block; }
+
+    .container { padding: 0 12px; }
+    .top-bar { margin-bottom: 10px; }
+
+    .search-section { padding: 12px; border-radius: 12px; }
+    .search-row { gap: 8px; }
+    .search-input { font-size: 16px; min-width: 0; }      /* iOS 확대 방지 */
+    .btn-search, .btn-reset-search { padding: 10px 14px; white-space: nowrap; }
+
+    .category-bar { padding: 12px 14px; border-radius: 12px; flex-wrap: wrap; gap: 10px; }
+    .category-tabs { gap: 8px 18px; }
+    .category-tab { font-size: 15px; }
+
+    /* 하단 고정 바: 화면 폭 전체 */
+    body { padding-bottom: 84px; }
+    .cart-float-bar {
+        left: 12px; right: 12px; bottom: 12px;
+        border-radius: 12px; padding: 12px 16px; gap: 14px;
+    }
+    .cart-float-icon { font-size: 24px; }
+    .cart-float-text {
+        flex: 1; text-align: right;
+        border-left: 1px solid rgba(255,255,255,0.3); padding-left: 14px;
+    }
+    .cart-float-text strong { font-size: 16px; }
+
+    .cart-toast { left: 16px; right: 16px; bottom: 84px; text-align: center; }
+    #scroll-top-btn { bottom: 84px !important; right: 16px !important; }
+
+    /* 수량 모달: 화면 아래에서 올라오는 형태 */
+    .modal-overlay.active { align-items: flex-end; }
+    .modal {
+        max-width: none; border-radius: 16px 16px 0 0;
+        padding: 24px 20px calc(20px + env(safe-area-inset-bottom));
+    }
+    .qty-stepper button { width: 52px; }
+    .modal-actions { justify-content: stretch; }
+    .btn-modal-cancel, .btn-modal-save { flex: 1; padding: 12px; font-size: 15px; }
 }
 </style>
 
@@ -344,7 +407,15 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
         <button type="button" class="btn-coupon-box" onclick="openCouponBox()">쿠폰함</button>
     </div>
 
-    <?php include __DIR__ . '/../includes/catalog_price_table.php'; ?>
+    <!-- PC: 기존 테이블 (관리자 화면과 공유하는 partial, 변경 없음) -->
+    <div class="catalog-desktop">
+        <?php include __DIR__ . '/../includes/catalog_price_table.php'; ?>
+    </div>
+
+    <!-- 모바일: 업체 전용 카드형 목록 -->
+    <div class="catalog-mobile">
+        <?php include __DIR__ . '/../includes/catalog_price_cards.php'; ?>
+    </div>
 
 </div>
 
@@ -392,20 +463,24 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
         <h2>장바구니 담기</h2>
         <p id="cart-modal-product-name" style="margin-bottom:16px;color:#555;"></p>
         <div class="form-group">
-            <label>수량</label>
-            <input type="number" id="cart-modal-qty" value="1" min="1" step="1">
+            <label for="cart-modal-qty">수량</label>
+            <div class="qty-stepper">
+                <button type="button" onclick="stepModalQty(-1)" aria-label="수량 줄이기">−</button>
+                <input type="number" id="cart-modal-qty" value="1" min="1" step="1" inputmode="numeric">
+                <button type="button" onclick="stepModalQty(1)" aria-label="수량 늘리기">+</button>
+            </div>
         </div>
         <div class="modal-actions">
             <button type="button" class="btn-modal-cancel" onclick="closeCartModal()">취소</button>
-            <button type="button" class="btn-modal-save" onclick="confirmAddToCart()">담기</button>
+            <button type="button" class="btn-modal-save" id="cart-modal-save" onclick="confirmAddToCart()">담기</button>
         </div>
     </div>
 </div>
 
-<!-- 하단 좌측 장바구니 요약바 -->
+<!-- 하단 장바구니 요약바 (PC: 좌측 알약형 / 모바일: 화면 폭 전체) -->
 <a href="<?php echo BASE_URL; ?>/client/cart.php" class="cart-float-bar" id="cart-float-bar" style="display:none;">
     <span class="cart-float-icon">🛒<span class="cart-float-badge" id="cart-float-badge">0</span></span>
-    <span>합계: <strong id="cart-float-total">0원</strong></span>
+    <span class="cart-float-text">예상결제금액 <strong id="cart-float-total">0원</strong><span class="cart-float-basis">(VAT 포함 현금가 기준)</span></span>
 </a>
 
 <div class="cart-toast" id="cart-toast"></div>
@@ -431,6 +506,7 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
         text-align:center;
     ">↑</button>
 
+<script src="<?php echo BASE_URL; ?>/assets/js/cart_calc.js?v=<?php echo filemtime(__DIR__ . '/../assets/js/cart_calc.js'); ?>"></script>
 <script>
 const CSRF_TOKEN = '<?php echo generate_csrf_token(); ?>';
 
@@ -443,6 +519,7 @@ function showCartToast(message, isError = false) {
     showCartToast._timer = setTimeout(() => toast.classList.remove('show'), 2000);
 }
 
+/* ── 수량 모달 ── */
 function openCartModal(productId, productName) {
     document.getElementById('cart-modal').dataset.productId = productId;
     document.getElementById('cart-modal-product-name').textContent = productName;
@@ -456,15 +533,28 @@ document.getElementById('cart-modal').addEventListener('click', function(e) {
     if (e.target === this) closeCartModal();
 });
 
+function stepModalQty(delta) {
+    const input   = document.getElementById('cart-modal-qty');
+    const current = parseInt(input.value, 10) || 1;
+    input.value   = Math.max(1, current + delta);
+}
+
+// 수량 칸에서 Enter = 담기
+document.getElementById('cart-modal-qty').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); confirmAddToCart(); }
+});
+
 function confirmAddToCart() {
-    const modal      = document.getElementById('cart-modal');
-    const productId  = modal.dataset.productId;
-    const qtyInput   = document.getElementById('cart-modal-qty');
-    const quantity   = parseInt(qtyInput.value, 10);
+    const modal     = document.getElementById('cart-modal');
+    const saveBtn   = document.getElementById('cart-modal-save');
+    const productId = modal.dataset.productId;
+    const quantity  = parseInt(document.getElementById('cart-modal-qty').value, 10);
     if (!quantity || quantity < 1) {
         showCartToast('수량을 확인해주세요.', true);
         return;
     }
+    if (saveBtn.disabled) return;   // 연타로 두 번 담기는 것 방지
+    saveBtn.disabled = true;
 
     fetch('<?php echo BASE_URL; ?>/api/cart/add.php', {
         method: 'POST',
@@ -479,9 +569,11 @@ function confirmAddToCart() {
             refreshCartSummary();
         }
     })
-    .catch(() => showCartToast('오류가 발생했습니다.', true));
+    .catch(() => showCartToast('오류가 발생했습니다.', true))
+    .finally(() => { saveBtn.disabled = false; });
 }
 
+/* ── 하단 요약바 + 카드별 담긴 수량 배지 ── */
 function refreshCartSummary() {
     fetch('<?php echo BASE_URL; ?>/api/cart/list.php')
         .then(r => {
@@ -490,11 +582,23 @@ function refreshCartSummary() {
         })
         .then(data => {
             if (!data.success) { console.error('cart list error:', data.message); return; }
+
+            // 장바구니 페이지 기본값(현금가 기준, 부가세 포함)과 같은 금액
+            const summary = CartCalc.computeSummary(data.items, 'cash', {});
+
+            // 카드 배지: 제품별 담긴 수량
+            const qtyByProduct = {};
+            data.items.forEach(i => { qtyByProduct[i.product_id] = (qtyByProduct[i.product_id] || 0) + i.quantity; });
+            document.querySelectorAll('.pc-cart-badge').forEach(badge => {
+                const q = qtyByProduct[badge.dataset.productId] || 0;
+                badge.textContent = q;
+                badge.classList.toggle('show', q > 0);
+            });
+
             const bar = document.getElementById('cart-float-bar');
-            const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0);
-            if (totalQty === 0) { bar.style.display = 'none'; return; }
-            document.getElementById('cart-float-badge').textContent = totalQty;
-            document.getElementById('cart-float-total').textContent = Math.round(data.total_net ?? data.total).toLocaleString() + '원';
+            if (summary.totalQty === 0) { bar.style.display = 'none'; return; }
+            document.getElementById('cart-float-badge').textContent = summary.totalQty;
+            document.getElementById('cart-float-total').textContent = CartCalc.numberFormat(summary.totalNet) + '원';
             bar.style.display = 'flex';
         })
         .catch(err => console.error('cart summary fetch failed:', err));
@@ -526,6 +630,12 @@ function closeCouponBox() {
     document.getElementById('coupon-box-panel').classList.remove('open');
     document.getElementById('coupon-box-overlay').classList.remove('open');
 }
+
+/* 카드 목록도 테이블과 동일하게 드래그/선택 방지 (footer.php는 .price-table-wrap만 처리) */
+document.querySelectorAll('.catalog-cards-wrap').forEach(function(el) {
+    el.addEventListener('dragstart',   function(e) { e.preventDefault(); });
+    el.addEventListener('selectstart', function(e) { e.preventDefault(); });
+});
 
 /* Scroll to Top 버튼 */
 const scrollBtn = document.getElementById('scroll-top-btn');
