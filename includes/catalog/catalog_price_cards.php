@@ -1,6 +1,6 @@
 <?php
 /**
- * includes/catalog_price_cards.php
+ * includes/catalog/catalog_price_cards.php
  * -------------------------------------------------
  * 고객(일반 업체) 전용 모바일 카드형 상품 목록.
  * ⚠️ client/catalog.php에서만 include합니다.
@@ -21,7 +21,7 @@
  *   $coupons_by_product  - get_active_coupons_for_company() 결과
  *   $is_searching        - 다중검색 모드 여부 (카드에 구분명 표시)
  *   $current_user        - 워터마크 텍스트용
- *   calc_card_price(), pick_best_coupon() - includes/catalog_helpers.php
+ *   calc_card_price(), pick_best_coupon() - includes/catalog/catalog_helpers.php
  */
 ?>
 <style>

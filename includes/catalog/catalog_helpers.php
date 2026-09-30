@@ -1,6 +1,6 @@
 <?php
 /**
- * includes/catalog_helpers.php
+ * includes/catalog/catalog_helpers.php
  * -------------------------------------------------
  * admin/price_manage.php 와 client/catalog.php(예정) 양쪽에서 공용으로 쓰는 함수 모음.
  * 여기 있는 함수들은 원본 price_manage.php에서 그대로(내용 변경 없이) 옮긴 것입니다.

@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../includes/catalog_helpers.php';
+require_once __DIR__ . '/../../includes/catalog/catalog_helpers.php';
 
 require_login();
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * includes/catalog_price_table.php
+ * includes/catalog/catalog_price_table.php
  * -------------------------------------------------
  * 공유 상품/가격 테이블 partial.
  * 사용처 3곳: ① admin 수정모드(effective_is_admin=true) ② admin 업체 미리보기(effective_is_admin=false, is_previewing=true)
@@ -26,7 +26,7 @@
  *   $selected_month_full  - 'YYYY-MM-01' 형식
  *   $selected_category_id - 현재 선택된 카테고리 ID
  *   $current_user         - get_current_login_user() 결과 (워터마크 텍스트용)
- *   calc_card_price()     - includes/catalog_helpers.php에 정의됨, 미리 require 필요
+ *   calc_card_price()     - includes/catalog/catalog_helpers.php에 정의됨, 미리 require 필요
  *
  * 이 안에서 쓰이는 JS 함수(toggleLock, toggleRowHighlight, handleBrandSelectChange, toggleActive,
  * showTagInput, removeTag)는 admin/price_manage.php의 <script> 블록에 정의되어 있습니다.

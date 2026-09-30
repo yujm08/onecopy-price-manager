@@ -2,7 +2,7 @@
 $page_title = '가격 관리';
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../includes/catalog_helpers.php';
+require_once __DIR__ . '/../includes/catalog/catalog_helpers.php';
 require_admin();
 
 /* ── 업체별 가격 미리보기 ── */
@@ -749,7 +749,7 @@ $coupons_by_product = $is_previewing
     </div>
     <?php endif; ?>
 
-    <?php include __DIR__ . '/../includes/catalog_price_table.php'; ?>
+    <?php include __DIR__ . '/../includes/catalog/catalog_price_table.php'; ?>
 
     <?php else: // $show_company_results ?>
     <div class="company-results-wrap">

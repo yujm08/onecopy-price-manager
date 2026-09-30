@@ -2,7 +2,7 @@
 $page_title = '상품 조회';
 require_once __DIR__ . '/../includes/header.php';               // require_login() 여기서 걸림
 require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../includes/catalog_helpers.php';
+require_once __DIR__ . '/../includes/catalog/catalog_helpers.php';
 
 // 관리자/슈퍼관리자는 관리 화면으로 (이 페이지는 일반 업체 전용)
 if (is_admin()) {
@@ -409,12 +409,12 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
 
     <!-- PC: 기존 테이블 (관리자 화면과 공유하는 partial, 변경 없음) -->
     <div class="catalog-desktop">
-        <?php include __DIR__ . '/../includes/catalog_price_table.php'; ?>
+        <?php include __DIR__ . '/../includes/catalog/catalog_price_table.php'; ?>
     </div>
 
     <!-- 모바일: 업체 전용 카드형 목록 -->
     <div class="catalog-mobile">
-        <?php include __DIR__ . '/../includes/catalog_price_cards.php'; ?>
+        <?php include __DIR__ . '/../includes/catalog/catalog_price_cards.php'; ?>
     </div>
 
 </div>
