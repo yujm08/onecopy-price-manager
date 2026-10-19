@@ -12,17 +12,6 @@ function calc_card_price($cash) {
 }
 
 /**
- * 고객에게 보여줄 "기준 월" — 항상 오늘 날짜 기준 이번 달.
- * 그 달에 가격 데이터가 없는 상품은 그냥 '-'로 표시됨 (가격 있는 다른 달로 대체하지 않음).
- * 카탈로그/장바구니 등 고객이 보는 모든 화면이 반드시 이 함수 하나로 통일해서 써야
- * 서로 다른 월 기준으로 가격이 어긋나는 문제가 안 생김.
- * 반환값은 'YYYY-MM-01' 형식.
- */
-function get_latest_priced_month(PDO $pdo): string {
-    return date('Y-m-01');
-}
-
-/**
  * 특정 업체(company_id)가 지금 시점에 실제로 쓸 수 있는(유효기간 내 + 잔여수량>0) 쿠폰을
  * product_id별로 그룹핑해서 반환.
  * 반환: [ product_id => [ ['allocation_id','coupon_id','coupon_name','discount_type',

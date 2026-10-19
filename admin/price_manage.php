@@ -37,14 +37,6 @@ if ($show_company_results) {
     $company_search_results = $cstmt->fetchAll();
 }
 
-/* ── 월 ── */
-if ($effective_is_admin) {
-    $selected_month = $_GET['month'] ?? date('Y-m');
-} else {
-    $selected_month = date('Y-m');
-}
-$selected_month_full = $selected_month . '-01';
-
 /* ── 검색 파라미터 ── */
 $search_query   = trim($_GET['q'] ?? '');
 $cat_filter_str = trim($_GET['cat_filter'] ?? '');
@@ -65,7 +57,7 @@ $from_condition = $effective_is_admin ? "WHERE 1=1" : "WHERE p.is_active = 1";
 $from = "FROM products p
     LEFT JOIN brands b     ON p.brand_id = b.id
     LEFT JOIN categories c ON p.category_id = c.id
-    LEFT JOIN prices pr    ON p.id = pr.product_id AND pr.price_month = ?
+    LEFT JOIN prices pr    ON p.id = pr.product_id
     LEFT JOIN product_tags pt ON p.id = pt.product_id
     {$from_condition}";
 
@@ -78,7 +70,7 @@ foreach ($terms as $t) {
 }
 
 /* ── 메인 제품 조회 ── */
-$params = [$selected_month_full];
+$params = [];
 if ($is_searching) {
     $extra  = $term_sql;
     $params = array_merge($params, $term_params);
@@ -109,7 +101,7 @@ $products = $stmt->fetchAll();
 $bubble_categories = [];
 if ($is_searching) {
     $bstmt = $pdo->prepare("SELECT DISTINCT c.id, c.category_name $from $term_sql ORDER BY c.id");
-    $bstmt->execute(array_merge([$selected_month_full], $term_params));
+    $bstmt->execute($term_params);
     $bubble_categories = $bstmt->fetchAll();
 }
 
@@ -202,16 +194,7 @@ $coupons_by_product = $is_previewing
 <style>
 .container { max-width: min(1800px, 96vw); width: 100%; margin: 0 auto; padding: 0 16px; box-sizing: border-box; }
 
-/* 월 네비 */
-.month-nav { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
-.month-nav button { padding:8px 14px; background:#5A6778; color:white; border:none; border-radius:4px; cursor:pointer; font-size:16px; }
-.month-nav button:hover { background:#4B5563; }
-.month-display { font-size:18px; font-weight:700; padding:8px 16px; border:2px solid #ddd; border-radius:4px; background:white; cursor:pointer; min-width:130px; text-align:center; }
-.month-display:hover { background:#f8f9fa; }
-.btn-snapshot { padding:8px 16px; background:#8e44ad; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
-.btn-snapshot:hover { background:#7d3c98; }
-
-/* 상단 바 (월 네비 + 업체 검색) */
+/* 상단 바 (업체 검색) */
 .top-bar { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
 .company-search-form { display:flex; align-items:center; gap:8px; }
 .company-search-input { padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:14px; min-width:220px; }
@@ -485,39 +468,15 @@ $coupons_by_product = $is_previewing
     </div>
     <?php endif; ?>
 
-        <!-- 상단 바: 월 네비게이션 + 업체 검색 -->
+        <!-- 상단 바: 업체 검색 -->
     <div class="top-bar">
-        <?php if (!$show_company_results): ?>
-            <?php if ($effective_is_admin): ?>
-            <div class="month-nav">
-                <button onclick="moveMonth(-1)">◀</button>
-                <div class="month-display" onclick="openMonthPicker()">
-                    <?php echo date('Y년 m월', strtotime($selected_month_full)); ?>
-                </div>
-                <button onclick="moveMonth(1)">▶</button>
-                <input type="month" id="month-picker" value="<?php echo h($selected_month); ?>"
-                onchange="changeMonth(this.value)"
-                style="position:absolute;opacity:0;pointer-events:none;">
-                <?php if (is_superadmin()): ?>
-                <button class="btn-snapshot" onclick="createSnapshot()">스냅샷 생성</button>
-                <?php endif; ?>
-            </div>
-            <?php else: ?>
-            <div style="font-size:18px;font-weight:700;">
-                <?php echo date('Y년 m월', strtotime($selected_month_full)); ?>
-            </div>
-            <?php endif; ?>
-        <?php else: ?>
         <div></div>
-        <?php endif; ?>
-
         <?php if (is_admin()): ?>
         <form method="GET" action="" class="company-search-form">
-            <input type="hidden" name="month" value="<?php echo h($selected_month); ?>">
             <?php if ($is_previewing): ?>
             <span class="company-chip">
                 <?php echo h($preview_company['company_name']); ?>의 검색 결과
-                <a href="?month=<?php echo h($selected_month); ?>" class="chip-close" title="초기화">⊗</a>
+                <a href="?" class="chip-close" title="초기화">⊗</a>
             </span>
             <?php else: ?>
             <input type="text" name="company_search" class="company-search-input"
@@ -531,7 +490,6 @@ $coupons_by_product = $is_previewing
     <?php if (!$show_company_results): ?>
     <!-- 검색 폼 -->
     <form id="search-form" class="search-section" method="GET" action="">
-        <input type="hidden" name="month"      value="<?php echo h($selected_month); ?>">
         <input type="hidden" name="category"   value="<?php echo $selected_category_id; ?>">
         <input type="hidden" name="cat_filter" id="cat-filter-input" value="<?php echo h($cat_filter_str); ?>">
         <input type="hidden" name="preview_company" value="<?php echo $preview_company_id; ?>">
@@ -542,7 +500,7 @@ $coupons_by_product = $is_previewing
                     placeholder="검색어 입력 (쉼표로 구분하여 다중 검색)">
             <button type="submit" class="btn-search">검색</button>
                         <?php if ($is_searching || !empty($cat_filters)): ?>
-            <a href="?month=<?php echo h($selected_month); ?>&category=<?php echo $selected_category_id; ?>&preview_company=<?php echo $preview_company_id; ?>" class="btn-reset-search">초기화</a>
+            <a href="?category=<?php echo $selected_category_id; ?>&preview_company=<?php echo $preview_company_id; ?>" class="btn-reset-search">초기화</a>
             <?php endif; ?>
         </div>
 
@@ -582,7 +540,7 @@ $coupons_by_product = $is_previewing
         <?php if (!$is_searching): ?>
         <div class="category-tabs">
             <?php foreach ($all_categories as $cat): ?>
-            <a href="?month=<?php echo h($selected_month); ?>&category=<?php echo $cat['id']; ?>&preview_company=<?php echo $preview_company_id; ?>"
+            <a href="?category=<?php echo $cat['id']; ?>&preview_company=<?php echo $preview_company_id; ?>"
                 class="category-tab <?php echo $cat['id'] == $selected_category_id ? 'active' : ''; ?>">
                 <?php echo h($cat['category_name']); ?>
             </a>
@@ -635,7 +593,6 @@ $coupons_by_product = $is_previewing
         <form id="formula-form" method="POST" action="<?php echo BASE_URL; ?>/api/category/formula_save.php">
             <input type="hidden" name="csrf_token"  value="<?php echo generate_csrf_token(); ?>">
             <input type="hidden" name="category_id" value="<?php echo $selected_category_id; ?>">
-            <input type="hidden" name="price_month" value="<?php echo $selected_month_full; ?>">
 
             <div class="formula-base-row">
                 <label>기준 등급 (직접 입력하는 등급)</label>
@@ -679,7 +636,6 @@ $coupons_by_product = $is_previewing
         <h3>새 제품 추가</h3>
         <form method="POST" action="<?php echo BASE_URL; ?>/api/price/add_row.php">
             <input type="hidden" name="csrf_token"   value="<?php echo generate_csrf_token(); ?>">
-            <input type="hidden" name="price_month"  value="<?php echo $selected_month_full; ?>">
 
             <div class="form-grid">
                 <div>
@@ -758,7 +714,7 @@ $coupons_by_product = $is_previewing
         <?php else: ?>
         <?php foreach ($company_search_results as $c): ?>
         <a class="company-result-row"
-            href="?company_search=<?php echo urlencode($company_search); ?>&preview_company=<?php echo $c['id']; ?>&month=<?php echo h($selected_month); ?>">
+            href="?company_search=<?php echo urlencode($company_search); ?>&preview_company=<?php echo $c['id']; ?>">
             <span><?php echo h($c['company_name']); ?> (대표자명: <?php echo h($c['representative_name'] ?: '-'); ?> / 담당자명: <?php echo h($c['manager_name'] ?: '-'); ?>)</span>
             <span class="grade-badge">등급<?php echo h($c['grade']); ?></span>
         </a>
@@ -792,7 +748,6 @@ $coupons_by_product = $is_previewing
 <!-- 삭제 폼 -->
 <form id="delete-form" method="POST" action="<?php echo BASE_URL; ?>/api/price/delete_rows.php" style="display:none">
     <input type="hidden" name="csrf_token"  value="<?php echo generate_csrf_token(); ?>">
-    <input type="hidden" name="price_month" value="<?php echo $selected_month_full; ?>">
     <input type="hidden" name="category_id" value="<?php echo $selected_category_id; ?>">
 </form>
 
@@ -1005,32 +960,6 @@ function toggleCategoryDelete(catId, catName) {
         btn.classList.remove('marked');
         input.disabled = false;
     }
-}
-
-/* ── 월 네비 ── */
-function moveMonth(diff) {
-    const d = new Date('<?php echo $selected_month; ?>-01');
-    d.setMonth(d.getMonth() + diff);
-    const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-    changeMonth(m);
-}
-function changeMonth(m) {
-    window.location.href = `?month=${m}&category=<?php echo $selected_category_id; ?>`;
-}
-function openMonthPicker() { document.getElementById('month-picker').showPicker(); }
-
-/* ── 스냅샷 ── */
-function createSnapshot() {
-    if (!confirm('<?php echo date('Y년 m월', strtotime($selected_month_full)); ?> 스냅샷을 생성하시겠습니까?')) return;
-    const f = document.createElement('form');
-    f.method = 'POST';
-    f.action = '<?php echo BASE_URL; ?>/api/create_snapshot.php';
-    f.innerHTML = `
-        <input type="hidden" name="target_month" value="<?php echo $selected_month_full; ?>">
-        <input type="hidden" name="csrf_token"   value="<?php echo generate_csrf_token(); ?>">
-    `;
-    document.body.appendChild(f);
-    f.submit();
 }
 
 // 페이지 로드 시 비활성 행 숨기기

@@ -28,7 +28,10 @@ $home_url = is_admin() ? BASE_URL . '/admin/price_manage.php' : BASE_URL . '/cli
 
 <div class="side-drawer" id="side-drawer">
     <div class="drawer-header">
-        <h1><a href="<?php echo $home_url; ?>" style="text-decoration:none;color:inherit;">가격관리 시스템</a></h1>
+        <a href="<?php echo $home_url; ?>" class="gnb-brand">
+            <img src="<?php echo BASE_URL; ?>/assets/images/GNB.png" alt="원카피" class="gnb-logo">
+            <span class="gnb-tel">1566-4973</span>
+        </a>
     </div>
     <?php if (is_admin()): ?>
     <nav class="drawer-nav">

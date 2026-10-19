@@ -244,27 +244,6 @@ body {
   padding: 0 20px;
 }
 
-/* 월 선택 */
-.month-selector {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.month-selector label {
-  font-weight: 500;
-  margin-right: 10px;
-}
-
-.month-selector select {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
 /* 구분 탭 */
 .category-tabs {
   display: flex;
@@ -437,9 +416,6 @@ body {
   }
   .btn-change-pw {
     display: none;
-  } /* 공간 부족 시 숨김 */
-  .btn-snapshot {
-    display: none;
   }
 }
 
@@ -585,7 +561,8 @@ body {
     display: block;
   }
   .header-left {
-    display: none;
+    display: flex;
+    justify-content: center;
   }
   .header-center {
     display: none;

@@ -5,10 +5,8 @@ require_once __DIR__ . '/../../config/config.php';
 
 require_superadmin();
 
-$price_month = $_POST['price_month'] ?? '';
 $category_id = $_POST['category_id'] ?? 1;
-$month       = date('Y-m', strtotime($price_month));
-$back        = BASE_URL . "/admin/price_manage.php?month={$month}&category={$category_id}";
+$back  = BASE_URL . "/admin/price_manage.php?category=" . (int)$category_id;
 
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     $_SESSION['error_message'] = '보안 토큰이 유효하지 않습니다.';
@@ -122,7 +120,7 @@ try {
         $manual_c = !empty($price_data['cash_price_c_manual']) ? 1 : 0;
 
         if ($pa === null && $pb === null && $pc === null) {
-            $pdo->prepare("DELETE FROM prices WHERE product_id=? AND price_month=?")->execute([$pid, $price_month]);
+            $pdo->prepare("DELETE FROM prices WHERE product_id=?")->execute([$pid]);
             continue;
         }
 
@@ -155,31 +153,31 @@ try {
 
             // 수식 재계산 결과 세 등급이 전부 비게 되면(예: 기준등급 0 + 나머지 전부 자동) 행 자체를 삭제
             if ($pa === null && $pb === null && $pc === null) {
-                $pdo->prepare("DELETE FROM prices WHERE product_id=? AND price_month=?")->execute([$pid, $price_month]);
+                $pdo->prepare("DELETE FROM prices WHERE product_id=?")->execute([$pid]);
                 continue;
             }
         }
 
-        $exists = $pdo->prepare("SELECT id FROM prices WHERE product_id=? AND price_month=?");
-        $exists->execute([$pid, $price_month]);
+        $exists = $pdo->prepare("SELECT id FROM prices WHERE product_id=?");
+        $exists->execute([$pid]);
 
         if ($exists->fetch()) {
             $stmt = $pdo->prepare("
                 UPDATE prices SET cash_price_a=?, cash_price_b=?, cash_price_c=?, purchase_price=?, cost_price=?,
                     cash_price_a_manual=?, cash_price_b_manual=?, cash_price_c_manual=?,
                     updated_by_company_id=?, updated_at=NOW()
-                WHERE product_id=? AND price_month=?
+                WHERE product_id=?
             ");
-            $stmt->execute([$pa, $pb, $pc, $purchase, $cost, $manual_a, $manual_b, $manual_c, $current_user['id'], $pid, $price_month]);
+            $stmt->execute([$pa, $pb, $pc, $purchase, $cost, $manual_a, $manual_b, $manual_c, $current_user['id'], $pid]);
             if ($stmt->rowCount() > 0) $saved++;
         } else {
                         $pdo->prepare("
                 INSERT INTO prices (
-                    product_id, price_month, cash_price_a, cash_price_b, cash_price_c, purchase_price, cost_price,
+                    product_id, cash_price_a, cash_price_b, cash_price_c, purchase_price, cost_price,
                     cash_price_a_manual, cash_price_b_manual, cash_price_c_manual, updated_by_company_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ")->execute([$pid, $price_month, $pa, $pb, $pc, $purchase, $cost, $manual_a, $manual_b, $manual_c, $current_user['id']]);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ")->execute([$pid, $pa, $pb, $pc, $purchase, $cost, $manual_a, $manual_b, $manual_c, $current_user['id']]);
             $saved++;
         }
     }

@@ -10,9 +10,6 @@ if (is_admin()) {
     exit;
 }
 
-/* ── 월 (고객은 항상 가격이 등록된 최신 월을 봄, 선택 불가) ── */
-$selected_month_full = get_latest_priced_month($pdo);
-
 /* ── 검색 파라미터 ── */
 $search_query   = trim($_GET['q'] ?? '');
 $cat_filter_str = trim($_GET['cat_filter'] ?? '');
@@ -32,7 +29,7 @@ $selected_category_id = (int)($_GET['category'] ?? ($all_categories[0]['id'] ?? 
 $from = "FROM products p
     LEFT JOIN brands b     ON p.brand_id = b.id
     LEFT JOIN categories c ON p.category_id = c.id
-    LEFT JOIN prices pr    ON p.id = pr.product_id AND pr.price_month = ?
+    LEFT JOIN prices pr    ON p.id = pr.product_id
     LEFT JOIN product_tags pt ON p.id = pt.product_id
     WHERE p.is_active = 1";
 
@@ -45,7 +42,7 @@ foreach ($terms as $t) {
 }
 
 /* ── 메인 제품 조회 ── */
-$params = [$selected_month_full];
+$params = [];
 if ($is_searching) {
     $extra  = $term_sql;
     $params = array_merge($params, $term_params);
@@ -75,7 +72,7 @@ $products = $stmt->fetchAll();
 $bubble_categories = [];
 if ($is_searching) {
     $bstmt = $pdo->prepare("SELECT DISTINCT c.id, c.category_name $from $term_sql ORDER BY c.id");
-    $bstmt->execute(array_merge([$selected_month_full], $term_params));
+    $bstmt->execute($term_params);
     $bubble_categories = $bstmt->fetchAll();
 }
 
@@ -114,9 +111,6 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
 
 <style>
 .container { max-width: 1400px; width: 100%; margin: 0 auto; padding: 0 16px; box-sizing: border-box; }
-
-/* 상단 바 (월 표시) */
-.top-bar { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
 
 /* 검색 */
 .search-section { background:white; padding:16px 20px; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 4px rgba(0,0,0,0.08); }
@@ -286,7 +280,6 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
     .catalog-mobile  { display: block; }
 
     .container { padding: 0 12px; }
-    .top-bar { margin-bottom: 10px; }
 
     .search-section { padding: 12px; border-radius: 12px; }
     .search-row { gap: 8px; }
@@ -337,12 +330,6 @@ $effective_grade     = strtolower($_SESSION['grade'] ?? '');
         <?php echo h($_SESSION['error_message']); unset($_SESSION['error_message']); ?>
     </div>
     <?php endif; ?>
-
-    <div class="top-bar">
-        <div style="font-size:18px;font-weight:700;">
-            <?php echo date('Y년 m월', strtotime($selected_month_full)); ?>
-        </div>
-    </div>
 
     <!-- 검색 폼 -->
     <form id="search-form" class="search-section" method="GET" action="">

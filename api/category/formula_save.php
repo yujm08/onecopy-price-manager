@@ -18,7 +18,6 @@ if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
 
 $category_id = (int)($_POST['category_id'] ?? 0);
 $base_grade  = $_POST['base_grade'] ?? '';
-$price_month = $_POST['price_month'] ?? date('Y-m-01');
 $rules_input = $_POST['rules'] ?? []; // ['B' => ['calc_type'=>..,'calc_value'=>..], 'C' => [...]]
 
 if (!$category_id || !in_array($base_grade, ['A', 'B', 'C'], true)) {
@@ -69,16 +68,16 @@ try {
         $rules_by_grade[$grade] = ['calc_type' => $calc_type, 'calc_value' => $calc_value];
     }
 
-    // 3. 이 카테고리 · 이 월의 전체 제품 재계산 (수동입력 포함, manual 플래그도 초기화)
+    // 3. 이 카테고리의 전체 제품 재계산 (수동입력 포함, manual 플래그도 초기화)
     $base_col = 'cash_price_' . strtolower($base_grade);
 
     $prod_stmt = $pdo->prepare("
         SELECT p.id, pr.$base_col AS base_price
         FROM products p
-        LEFT JOIN prices pr ON pr.product_id = p.id AND pr.price_month = ?
+        LEFT JOIN prices pr ON pr.product_id = p.id
         WHERE p.category_id = ?
     ");
-    $prod_stmt->execute([$price_month, $category_id]);
+    $prod_stmt->execute([$category_id]);
     $products = $prod_stmt->fetchAll();
 
     foreach ($products as $prod) {
@@ -103,9 +102,9 @@ try {
 
             $u = $pdo->prepare("
                 UPDATE prices SET $target_col = ?, $manual_col = 0
-                WHERE product_id = ? AND price_month = ?
+                WHERE product_id = ?
             ");
-            $u->execute([$new_price, $prod['id'], $price_month]);
+            $u->execute([$new_price, $prod['id']]);
         }
     }
 
@@ -116,5 +115,5 @@ try {
     $_SESSION['error_message'] = '저장 중 오류가 발생했습니다.';
 }
 
-header('Location: ' . BASE_URL . '/admin/price_manage.php?month=' . date('Y-m', strtotime($price_month)) . '&category=' . $category_id);
+header('Location: ' . BASE_URL . '/admin/price_manage.php?category=' . $category_id);
 exit;

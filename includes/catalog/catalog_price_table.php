@@ -23,7 +23,6 @@
  *   $formulas_by_category - [category_id => ['base_grade'=>.., 'rules'=>[...]]] (수정모드 자물쇠 표시용)
  *   $coupons_by_product   - get_active_coupons_for_company()의 반환값. [product_id => [쿠폰 배열]]
  *                            고객용(비관리자) 렌더링에서 쿠폰 적용가 표시에 사용. 없으면 빈 배열로 취급.
- *   $selected_month_full  - 'YYYY-MM-01' 형식
  *   $selected_category_id - 현재 선택된 카테고리 ID
  *   $current_user         - get_current_login_user() 결과 (워터마크 텍스트용)
  *   calc_card_price()     - includes/catalog/catalog_helpers.php에 정의됨, 미리 require 필요
@@ -38,14 +37,13 @@
 <?php if (empty($products)): ?>
 <div class="price-table-wrap">
     <div class="price-table-scroll">
-        <div class="no-data"><?php echo $is_searching ? '검색 결과가 없습니다.' : '해당 월의 가격 정보가 없습니다.'; ?></div>
+        <div class="no-data"><?php echo $is_searching ? '검색 결과가 없습니다.' : '등록된 상품이 없습니다.'; ?></div>
     </div>
 </div>
 <?php else: ?>
 
 <form id="price-form" method="POST" action="<?php echo BASE_URL; ?>/api/price/save.php">
     <input type="hidden" name="csrf_token"  value="<?php echo generate_csrf_token(); ?>">
-    <input type="hidden" name="price_month" value="<?php echo $selected_month_full; ?>">
     <input type="hidden" name="category_id" value="<?php echo $selected_category_id; ?>">
 
     <div class="price-table-wrap">
@@ -248,7 +246,7 @@
                     <?php if ($my_cash !== null): ?>
                     <button type="button" class="btn-cart-add" onclick="openCartModal(<?php echo $pid; ?>, <?php echo h(json_encode($product['product_name'])); ?>)">담기</button>
                     <?php else: ?>
-                    <button type="button" class="btn-cart-add" disabled title="이번 달 가격이 없어 담을 수 없습니다">담기</button>
+                    <button type="button" class="btn-cart-add" disabled title="가격이 없어 담을 수 없습니다">담기</button>
                     <?php endif; ?>
                 </td>
                 <?php endif; ?>

@@ -17,13 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $product_ids = $_POST['product_ids'] ?? [];
-$price_month = $_POST['price_month'] ?? '';
 $category_id = (int)($_POST['category_id'] ?? 0);
-$month       = date('Y-m', strtotime($price_month));
 
 if (empty($product_ids)) {
     $_SESSION['error_message'] = '삭제할 항목이 없습니다.';
-    header("Location: " . BASE_URL . "/admin/price_manage.php?month={$month}&category={$category_id}");
+    header("Location: " . BASE_URL . "/admin/price_manage.php?category={$category_id}");
     exit;
 }
 
@@ -33,7 +31,7 @@ $product_ids = array_filter($product_ids, fn($id) => $id > 0);
 
 if (empty($product_ids)) {
     $_SESSION['error_message'] = '잘못된 요청입니다.';
-    header("Location: " . BASE_URL . "/admin/price_manage.php?month={$month}&category={$category_id}");
+    header("Location: " . BASE_URL . "/admin/price_manage.php?category={$category_id}");
     exit;
 }
 
@@ -75,6 +73,6 @@ try {
     $_SESSION['error_message'] = '삭제 중 오류가 발생했습니다.';
 }
 
-header("Location: " . BASE_URL . "/admin/price_manage.php?month={$month}&category={$category_id}");
+header("Location: " . BASE_URL . "/admin/price_manage.php?category={$category_id}");
 exit;
 ?>
