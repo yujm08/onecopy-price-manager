@@ -16,7 +16,12 @@ $home_url = is_admin() ? BASE_URL . '/admin/price_manage.php' : BASE_URL . '/cli
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($page_title ?? '가격관리 시스템'); ?></title>
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
+
+    <!-- 파비콘 -->
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/assets/images/favicon.png?v=1">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/images/favicon.png?v=1">
+
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/style.css'); ?>">
 </head>
 <body>
 <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
@@ -60,7 +65,10 @@ $home_url = is_admin() ? BASE_URL . '/admin/price_manage.php' : BASE_URL . '/cli
     <button class="btn-hamburger" onclick="toggleDrawer()">☰</button>
 
     <div class="header-left">
-        <h1><a href="<?php echo $home_url; ?>" style="text-decoration:none;color:inherit;">가격관리 시스템</a></h1>
+        <a href="<?php echo $home_url; ?>" class="gnb-brand">
+            <img src="<?php echo BASE_URL; ?>/assets/images/GNB.png" alt="원카피" class="gnb-logo" height="40">
+            <span class="gnb-tel">1566-4973</span>
+        </a>
     </div>
 
     <?php if (is_admin()): ?>

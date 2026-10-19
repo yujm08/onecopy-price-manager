@@ -549,6 +549,36 @@ body {
   margin-left: 6px;
 }
 
+.gnb-brand {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  text-decoration: none;
+}
+.gnb-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+.gnb-tel {
+  margin-top: -5px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #1a4fa0; /* ← 로고 색*/
+  transform: translateX(7px);
+}
+
+@media (max-width: 768px) {
+  .gnb-logo {
+    height: 26px;
+  }
+  .gnb-tel {
+    font-size: 11px;
+  }
+}
+
 /* 모바일에서만 보이는 것들 */
 @media (max-width: 768px) {
   .btn-hamburger {

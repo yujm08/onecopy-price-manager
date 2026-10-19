@@ -3,6 +3,7 @@
 ?>
     <footer class="main-footer">
         <p>본 시스템의 모든 데이터는 기밀 정보입니다. 무단 유출 시 법적 책임이 발생할 수 있습니다.</p>
+        <p>[시스템 이용 문의] Tel. 010-8187-4973</p>
         <p>&copy; 2026. All rights reserved.</p>
     </footer>
 </body>

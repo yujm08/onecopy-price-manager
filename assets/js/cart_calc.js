@@ -4,7 +4,7 @@
  * 장바구니 금액 계산 공용 로직.
  * 사용처: client/cart.php (PC 테이블 + 모바일 카드), client/catalog.php (하단 요약바)
  *
- * ⚠️ calcCardPrice()는 includes/catalog/helpers.php의 calc_card_price()와 반드시 같은 공식이어야 함.
+ * ⚠️ calcCardPrice()는 includes/catalog/catalog_helpers.php의 calc_card_price()와 반드시 같은 공식이어야 함.
  * ⚠️ 이 파일의 로직은 원래 client/cart.php 인라인 스크립트에 있던 것을 동작 변경 없이 옮긴 것.
  *    (차이점: 전역변수 currentBasis/couponOverride를 읽던 것을 파라미터로 받도록만 변경)
  */
